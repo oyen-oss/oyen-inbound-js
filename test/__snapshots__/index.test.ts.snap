@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Email 1`] = `
+{
+  "from": "test <test@example.com>",
+  "raw": "Hello this is a MIME encapsulated message",
+  "to": "test <test@example.com>",
+}
+`;
