@@ -1,22 +1,26 @@
 SRCS = $(wildcard lib/**)
 
-all: test dist
+all: test build
 
 .PHONY: clean
 clean: node_modules
 	pnpm exec tsc -b --clean
-	rm -rf dist
+	rm -rf dist build
 
 .PHONY: test
 test: node_modules
 	pnpm exec tsc
 	NODE_OPTIONS=--experimental-vm-modules pnpm exec vitest
+	pnpm exec bundlesize
 
 node_modules: package.json
 	pnpm install
 
 dist: node_modules tsconfig.json $(SRCS)
 	pnpm exec tsc
+
+build: node_modules vite.config.ts $(SRCS)
+	pnpm exec vite build
 
 .PHONY: dist-watch
 dist-watch: node_modules
