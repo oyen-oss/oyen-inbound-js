@@ -8,9 +8,9 @@ clean: node_modules
 	rm -rf dist build
 
 .PHONY: test
-test: node_modules
+test: node_modules build
 	pnpm exec tsc
-	NODE_OPTIONS=--experimental-vm-modules pnpm exec vitest
+	pnpm exec vitest
 	pnpm exec bundlesize
 
 node_modules: package.json

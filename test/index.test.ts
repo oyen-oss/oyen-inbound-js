@@ -24,9 +24,10 @@ const privateKey =
 // fake for testing only
 const teamId = 'z7t7j3d8cTD';
 const eventsEndpoint = 'https://events.example.com';
+const apiEndpoint = 'https://api.example.com';
 
 test('Email', async () => {
-  const mockApi = mockAgent.get('https://api.example.com');
+  const mockApi = mockAgent.get(apiEndpoint);
   mockApi
     .intercept({ method: 'get', path: '/domains/oyenbound.com/inboxes/test' })
     .reply<EmailInbox>(200, {
@@ -86,8 +87,9 @@ test('Email', async () => {
       domainName: 'oyenbound.com',
       privateKey,
       options: {
+        endpoint: new URL(apiEndpoint),
         async fetcher(params) {
-          const res = await fetch(params.url);
+          const res = await fetch(new URL(params.url));
           return {
             ok: res.ok,
             status: res.status,

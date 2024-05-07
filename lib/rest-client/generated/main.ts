@@ -104,7 +104,7 @@ export class OyenRestApiRestClient extends RestServiceClient<
   AllOutputs
 > {
   constructor(
-    baseUrl = new URL('https://api.example.com/'),
+    baseUrl = new URL('https://api.oyen.io/'),
     fetcher = createIsomorphicNativeFetcher(),
     config?: RestServiceClientConfig,
   ) {

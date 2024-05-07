@@ -1,8 +1,8 @@
 export default {
   files: [
     {
-      path: 'dist/**/*.js',
-      maxSize: '0 KB',
+      path: 'build/**/*.js',
+      maxSize: '1.1 KB',
       compression: 'brotli',
     },
   ],
