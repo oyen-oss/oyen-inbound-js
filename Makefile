@@ -7,6 +7,10 @@ clean: node_modules
 	pnpm exec tsc -b --clean
 	rm -rf dist build
 
+.PHONY: distclean
+distclean: clean
+	rm -rf node_modules
+
 .PHONY: test
 test: node_modules build
 	pnpm exec tsc

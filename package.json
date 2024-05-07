@@ -22,9 +22,9 @@
     "preversion": "make test"
   },
   "dependencies": {
-    "@block65/custom-error": "^12.1.0",
+    "@block65/custom-error": "^12.2.0",
     "@block65/rest-client": "^9.1.0",
-    "@oyen-oss/eventsource": "^2.1.0",
+    "@oyen-oss/eventsource": "^3.0.0",
     "@oyen-oss/keys": "^2.1.0"
   },
   "devDependencies": {

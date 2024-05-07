@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@block65/custom-error':
-        specifier: ^12.1.0
+        specifier: ^12.2.0
         version: 12.2.0
       '@block65/rest-client':
         specifier: ^9.1.0
         version: 9.1.0
       '@oyen-oss/eventsource':
-        specifier: ^2.1.0
-        version: 2.1.1
+        specifier: ^3.0.0
+        version: 3.0.0
       '@oyen-oss/keys':
         specifier: ^2.1.0
         version: 2.1.0
@@ -37,19 +37,19 @@ importers:
         specifier: ^7.8.0
         version: 7.8.0(eslint@8.57.0)(typescript@5.4.5)
       eslint:
-        specifier: '8'
+        specifier: ^8.57.0
         version: 8.57.0
       eslint-plugin-import:
         specifier: ^2.29.1
         version: 2.29.1(@typescript-eslint/parser@7.8.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)
       eslint-plugin-prettier:
         specifier: ^5.1.3
-        version: 5.1.3(eslint-config-prettier@8.10.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5)
+        version: 5.1.3(eslint-config-prettier@9.1.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5)
       prettier:
         specifier: ^3.2.5
         version: 3.2.5
       type-fest:
-        specifier: ^4.18.0
+        specifier: ^4.18.2
         version: 4.18.2
       typescript:
         specifier: 5.4.5
@@ -61,7 +61,7 @@ importers:
         specifier: ^5.2.11
         version: 5.2.11(@types/node@20.12.10)
       vitest:
-        specifier: ^1.5.2
+        specifier: ^1.6.0
         version: 1.6.0(@types/node@20.12.10)
 
 packages:
@@ -318,8 +318,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@oyen-oss/eventsource@2.1.1':
-    resolution: {integrity: sha512-PWkMIfhWbQaLVws63Wzbt5wtp6syvPSboe2zL3rEDlw8T43u6Ww5iWB041XgslnKasx0yo+K6lZJbUD3089KBw==, tarball: https://npm.pkg.github.com/download/@oyen-oss/eventsource/2.1.1/ee9ce50d009a2e24126b622efa6029f8d0b9b83e}
+  '@oyen-oss/eventsource@3.0.0':
+    resolution: {integrity: sha512-UOX8TtO85U1q4RFT/Etq+7y4vGDniXXRj3i5HbRVgaMKrdQTIK6cyfI+Qs3vGj9ZJ/FfZAJIqx6OyBde8F+8bQ==, tarball: https://npm.pkg.github.com/download/@oyen-oss/eventsource/3.0.0/1463765f4014af446c25ff20b79b7060954cd42e}
     engines: {node: '>=18.0.0'}
 
   '@oyen-oss/keys@2.1.0':
@@ -856,6 +856,12 @@ packages:
 
   eslint-config-prettier@8.10.0:
     resolution: {integrity: sha512-SM8AMJdeQqRYT9O9zguiruQZaN7+z+E4eAP9oiLNGKMtomwaB1E9dcgUD6ZAn/eQAb52USbvezbiljfZUhbJcg==}
+    hasBin: true
+    peerDependencies:
+      eslint: '>=7.0.0'
+
+  eslint-config-prettier@9.1.0:
+    resolution: {integrity: sha512-NSWl5BFQWEPi1j4TjVNItzYV7dZXZ+wP6I6ZhrBGpChQhZRUaElihE9uRRkcbRnNb76UMKDF3r+WTmNcGPKsqw==}
     hasBin: true
     peerDependencies:
       eslint: '>=7.0.0'
@@ -2145,7 +2151,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.17.1
 
-  '@oyen-oss/eventsource@2.1.1':
+  '@oyen-oss/eventsource@3.0.0':
     dependencies:
       '@block65/custom-error': 12.2.0
       '@oyen-oss/keys': 2.1.0
@@ -2799,6 +2805,11 @@ snapshots:
     dependencies:
       eslint: 8.57.0
 
+  eslint-config-prettier@9.1.0(eslint@8.57.0):
+    dependencies:
+      eslint: 8.57.0
+    optional: true
+
   eslint-import-resolver-node@0.3.9:
     dependencies:
       debug: 3.2.7
@@ -2891,14 +2902,14 @@ snapshots:
       object.entries: 1.1.8
       object.fromentries: 2.0.8
 
-  eslint-plugin-prettier@5.1.3(eslint-config-prettier@8.10.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5):
+  eslint-plugin-prettier@5.1.3(eslint-config-prettier@9.1.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5):
     dependencies:
       eslint: 8.57.0
       prettier: 3.2.5
       prettier-linter-helpers: 1.0.0
       synckit: 0.8.8
     optionalDependencies:
-      eslint-config-prettier: 8.10.0(eslint@8.57.0)
+      eslint-config-prettier: 9.1.0(eslint@8.57.0)
 
   eslint-plugin-react-hooks@4.6.2(eslint@8.57.0):
     dependencies:

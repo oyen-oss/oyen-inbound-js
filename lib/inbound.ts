@@ -1,8 +1,7 @@
 import type { FetcherParams } from '@block65/rest-client';
 import {
-  OyenEventSource,
-  OyenEventSource as OyenEventStream,
-  type OyenEventSourceOptions,
+  OyenEventStream,
+  type OyenEventSourceOptions as OyenEventStreamOptions,
 } from '@oyen-oss/eventsource';
 import { createToken } from '@oyen-oss/keys';
 import { InboundSetupError } from './errors.js';
@@ -45,11 +44,6 @@ type SmsMessageData = {
 };
 
 export type InboundMessageData = EmailMessageData | SmsMessageData;
-
-type OyenEventStreamOptions<TParams extends InboundMessageData> = Omit<
-  OyenEventSourceOptions<TParams>,
-  'teamId' | 'eventSourceId' | 'channels' | 'endpoint' | 'accessToken'
->;
 
 export class Inbound<T extends InboundMessageData> {
   #eventStream: OyenEventStream<T>;
@@ -135,7 +129,7 @@ export class Inbound<T extends InboundMessageData> {
       globalThis.EventSource ||
       (await import('@oyen-oss/eventsource/eventsource')).EventSource;
 
-    const eventSource = new OyenEventSource<
+    const eventSource = new OyenEventStream<
       TParams extends InboundEmailOptions ? EmailMessageData : SmsMessageData
     >({
       eventSourceClass,
