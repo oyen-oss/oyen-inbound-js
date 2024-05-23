@@ -110,7 +110,7 @@ test('Email', async () => {
       },
     );
 
-  const email = await Inbound.from(
+  const email = new Inbound(
     {
       teamId: mockTeamId,
       accessToken: fakeAccessToken,
@@ -191,7 +191,7 @@ test('SMS', async () => {
       },
     );
 
-  const sms = await Inbound.from(
+  const sms = new Inbound(
     {
       teamId: mockTeamId,
       accessToken: fakeAccessToken,
