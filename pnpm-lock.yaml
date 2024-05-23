@@ -17,9 +17,6 @@ importers:
       '@oyen-oss/eventsource':
         specifier: ^3.0.0
         version: 3.0.0
-      '@oyen-oss/keys':
-        specifier: ^2.1.0
-        version: 2.1.0
     devDependencies:
       '@block65/bundlesize':
         specifier: ^1.0.1
@@ -27,6 +24,9 @@ importers:
       '@block65/eslint-config':
         specifier: ^11.0.0
         version: 11.0.0(@typescript-eslint/eslint-plugin@7.10.0(@typescript-eslint/parser@7.10.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5))(@typescript-eslint/parser@7.10.0(eslint@8.57.0)(typescript@5.4.5))(eslint-plugin-import@2.29.1(@typescript-eslint/parser@7.10.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0))(eslint-plugin-jsx-a11y@6.8.0(eslint@8.57.0))(eslint-plugin-react-hooks@4.6.2(eslint@8.57.0))(eslint-plugin-react@7.34.1(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5)(typescript@5.4.5)
+      '@oyen-oss/keys':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@types/node':
         specifier: ^20.12.12
         version: 20.12.12
