@@ -15,14 +15,12 @@ npm install @oyen-oss/inbound
 ```typescript
 import { Inbound } from '@oyen-oss/inbound';
 
-const email = await Inbound.from(
-  {
-    teamId: '<your oyen team id>',
-    accessToken: 'eyj...',
-    handle: 'test',
-    domain: 'oyenbound.com'
-  },
-);
+const email = await Inbound.from({
+  teamId: '<your oyen team id>',
+  accessToken: 'eyj...',
+  handle: 'test',
+  domain: 'oyenbound.com',
+});
 
 const message = await email.once('message');
 
@@ -32,7 +30,6 @@ console.log(message);
 //   to: 'test@oyenbound.com',
 //   raw: '<mime encoded email>',
 // }
-
 ```
 
 #### SMS
@@ -40,13 +37,11 @@ console.log(message);
 ```typescript
 import { Inbound } from '@oyen-oss/inbound';
 
-const sms = await Inbound.from(
-  {
-    teamId: '<your oyen team id>',
-    accessToken: 'eyj...',
-    number,
-  },
-);
+const sms = await Inbound.from({
+  teamId: '<your oyen team id>',
+  accessToken: 'eyj...',
+  number,
+});
 
 const message = await sms.once('message');
 
@@ -56,5 +51,4 @@ console.log(message);
 //   to: '2348123456789',
 //   raw: 'Hello, World!',
 // }
-
 ```
