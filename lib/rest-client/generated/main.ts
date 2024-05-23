@@ -3,7 +3,7 @@
  *
  * WARN: Do not edit directly.
  *
- * Generated on 2024-04-30T03:56:26.182Z
+ * Generated on 2024-05-23T03:49:41.606Z
  *
  */
 import {
@@ -36,6 +36,7 @@ import type {
   GetUserSettingsCommandInput,
   ListDomainInboxesCommandInput,
   GetDomainInboxCommandInput,
+  GetNumberInboxCommandInput,
   GetInboxEventSourceCommandInput,
   Team,
   Teams,
@@ -52,6 +53,7 @@ import type {
   UserSettings,
   EmailInboxList,
   EmailInbox,
+  SmsInbox,
   InboxEventSource,
 } from './types.js';
 
@@ -80,6 +82,7 @@ type AllInputs =
   | GetUserSettingsCommandInput
   | ListDomainInboxesCommandInput
   | GetDomainInboxCommandInput
+  | GetNumberInboxCommandInput
   | GetInboxEventSourceCommandInput;
 type AllOutputs =
   | Team
@@ -97,6 +100,7 @@ type AllOutputs =
   | UserSettings
   | EmailInboxList
   | EmailInbox
+  | SmsInbox
   | InboxEventSource;
 
 export class OyenRestApiRestClient extends RestServiceClient<
@@ -104,7 +108,7 @@ export class OyenRestApiRestClient extends RestServiceClient<
   AllOutputs
 > {
   constructor(
-    baseUrl = new URL('https://api.oyen.io/'),
+    baseUrl = new URL('https://api.example.com/'),
     fetcher = createIsomorphicNativeFetcher(),
     config?: RestServiceClientConfig,
   ) {

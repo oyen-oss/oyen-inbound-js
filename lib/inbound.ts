@@ -3,18 +3,18 @@ import {
   OyenEventStream,
   type OyenEventSourceOptions as OyenEventStreamOptions,
 } from '@oyen-oss/eventsource';
-import { createToken } from '@oyen-oss/keys';
 import { InboundSetupError } from './errors.js';
 import {
   GetDomainInboxCommand,
   GetInboxEventSourceCommand,
+  GetNumberInboxCommand,
   OyenRestApiRestClient,
 } from './rest-client/main.js';
 
 type CommonInboundOptions = {
   teamId: string;
-  privateKey: string;
-  options?: {
+  accessToken: string;
+  apiOptions?: {
     endpoint?: URL;
     fetcher?: (params: FetcherParams) => Promise<any>;
   };
@@ -31,13 +31,13 @@ export type InboundSmsOptions = CommonInboundOptions & {
 
 export type InboundOptions = InboundEmailOptions | InboundSmsOptions;
 
-type EmailMessageData = {
+export type EmailMessageData = {
   to: string;
   from: string;
   raw: string;
 };
 
-type SmsMessageData = {
+export type SmsMessageData = {
   to: string;
   from: string;
   raw: string;
@@ -58,8 +58,8 @@ export class Inbound<T extends InboundMessageData> {
     });
   }
 
-  public async once(_eventName: 'message') {
-    return this.#eventStream.once('message').then((m: { d: T }) => m.d);
+  public async once(eventName: 'message') {
+    return this.#eventStream.once(eventName).then((m: { d: T }) => m.d);
   }
 
   public close() {
@@ -68,52 +68,41 @@ export class Inbound<T extends InboundMessageData> {
 
   public static async from<TParams extends InboundOptions>(
     params: TParams,
-    eventSourceOptions?: OyenEventStreamOptions<
-      TParams extends InboundEmailOptions ? EmailMessageData : SmsMessageData
+    eventSourceOptions?: Omit<
+      OyenEventStreamOptions<
+        TParams extends InboundEmailOptions ? EmailMessageData : SmsMessageData
+      >,
+      // these are specified by the retrieved inbox
+      'teamId' | 'eventSourceId' | 'channels' | 'endpoint' | 'accessToken'
     >,
   ) {
-    const token = createToken({
-      privateKey: params.privateKey,
-      claims: {
-        scope: 'inbox:stream',
-      },
-    });
-
     const client = new OyenRestApiRestClient(
-      params?.options?.endpoint,
-      params?.options?.fetcher,
+      params.apiOptions?.endpoint,
+      params.apiOptions?.fetcher,
       {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${params.accessToken}`,
         },
       },
     );
-    // const inboxes = await client.json(
-    //   new ListInboxesCommand({ teamId: options.teamId }),
-    // );
 
-    // const inbox = inboxes.find(
-    //   (i) =>
-    //     ('handle' in options && 'handle' in i && i.handle === options.handle) ||
-    //     ('number' in options && 'number' in i && i.number === options.number),
-    // );
-
-    const inbox = await client.json(
-      'handle' in params
-        ? new GetDomainInboxCommand({
+    const inbox = await ('domainName' in params
+      ? client.json(
+          new GetDomainInboxCommand({
             handle: params.handle,
             domainName: params.domainName,
-          })
-        : new GetDomainInboxCommand({
-            handle: params.number,
-            domainName: params.number,
           }),
-    );
+        )
+      : client.json(
+          new GetNumberInboxCommand({
+            handle: params.number,
+          }),
+        ));
 
     if (!inbox) {
       throw new InboundSetupError('Inbox not found').debug({
         ...params,
-        privateKey: '[REDACTED]',
+        accessToken: params.accessToken && '[REDACTED]',
       });
     }
 

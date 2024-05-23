@@ -9,9 +9,12 @@ import type {
   GetDomainInboxCommandInput,
   GetInboxEventSourceCommandBody,
   GetInboxEventSourceCommandInput,
+  GetNumberInboxCommandBody,
+  GetNumberInboxCommandInput,
   InboxEventSource,
   ListDomainInboxesCommandBody,
   ListDomainInboxesCommandInput,
+  SmsInbox,
 } from './types.js';
 
 /**
@@ -114,5 +117,38 @@ export class GetInboxEventSourceCommand extends Command<
   constructor(input: GetInboxEventSourceCommandInput) {
     const { teamId, inboxId } = input;
     super(`/teams/${teamId}/inboxes/${inboxId}/eventsource`);
+  }
+}
+
+/**
+ * getNumberInboxCommand
+ * @param handle {String}
+ * @returns {RequestMethodCaller<SmsInbox>} HTTP 200
+ */
+export function getNumberInboxCommand(
+  handle: string,
+): RequestMethodCaller<SmsInbox> {
+  const req = {
+    method: 'get' as const,
+    pathname: `/numbers/${handle}`,
+  };
+  return (requestMethod, options) => requestMethod(req, options);
+}
+
+/**
+ * getNumberInboxCommand
+ *
+ *
+ */
+export class GetNumberInboxCommand extends Command<
+  GetNumberInboxCommandInput,
+  SmsInbox,
+  GetNumberInboxCommandBody
+> {
+  public override method = 'get' as const;
+
+  constructor(input: GetNumberInboxCommandInput) {
+    const { handle } = input;
+    super(`/numbers/${handle}`);
   }
 }

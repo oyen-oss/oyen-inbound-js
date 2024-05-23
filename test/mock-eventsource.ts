@@ -1,4 +1,4 @@
-export class MockEventSource implements EventSource {
+export class FetchBasedEventSource implements EventSource {
   public onmessage: ((event: MessageEvent) => void) | null = null;
 
   public onopen: (() => void) | null = null;
@@ -19,11 +19,13 @@ export class MockEventSource implements EventSource {
 
   public readyState: number = this.CONNECTING;
 
-  public url = 'https://events.example.com';
+  public url: string;
 
   public withCredentials = false;
 
   constructor(url: string, init?: EventSourceInit) {
+    this.url = url;
+
     this.readyState = this.OPEN;
     this.onopen?.();
     this.withCredentials = init?.withCredentials ?? false;
@@ -34,7 +36,7 @@ export class MockEventSource implements EventSource {
     fetch(url)
       .then(async (res) => {
         if (!res.body) {
-          throw new Error('no body?');
+          throw new Error('no body');
         }
 
         const reader = res.body.getReader();
