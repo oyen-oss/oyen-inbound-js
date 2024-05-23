@@ -10,6 +10,7 @@ import {
   GetNumberInboxCommand,
   OyenRestApiRestClient,
 } from './rest-client/main.js';
+import type { UnsubscribeFunction } from 'emittery';
 
 type CommonInboundOptions = {
   teamId: string;
@@ -68,17 +69,25 @@ export class Inbound<
       >
     | undefined;
 
+  /**
+   * @description Listen for messages
+   * @returns {UnsubscribeFunction} A function to stop listening
+   */
   public on(eventName: 'message', listener: (data: TData) => void) {
     if (this.#error) {
       throw this.#error;
     }
-    this.#eventStream.then((es) =>
-      es.on(eventName, (m) => {
-        listener(m.d);
-      }),
-    );
 
-    return this;
+    let unsubscribe: UnsubscribeFunction;
+    this.#eventStream.then((es) => {
+      unsubscribe = es.on(eventName, (m) => {
+        listener(m.d);
+      });
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
   }
 
   public async once(eventName: 'message'): Promise<TData> {
