@@ -14,7 +14,7 @@ distclean: clean
 .PHONY: test
 test: node_modules build
 	pnpm exec tsc
-	pnpm exec vitest
+	pnpm exec vitest run
 	pnpm exec bundlesize
 
 node_modules: package.json
@@ -26,6 +26,10 @@ dist: node_modules tsconfig.json $(SRCS)
 build: node_modules vite.config.ts $(SRCS)
 	pnpm exec vite build
 
+.PHONY: build-watch
+build-watch: node_modules
+	pnpm exec vite build --watch
+
 .PHONY: dist-watch
 dist-watch: node_modules
 	pnpm exec tsc -w --preserveWatchOutput
@@ -34,3 +38,8 @@ dist-watch: node_modules
 pretty: node_modules
 	pnpm exec eslint --fix . || true
 	pnpm exec prettier --write .
+
+
+.PHONY: dev
+dev:
+	$(MAKE) -j 2 build-watch dist-watch

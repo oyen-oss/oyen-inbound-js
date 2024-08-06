@@ -1,17 +1,9 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Email 1`] = `
+exports[`Inbound > Email 1`] = `
 {
-  "from": "test <test@example.com>",
-  "raw": "Hello this is a MIME encapsulated message",
-  "to": "test <test@example.com>",
-}
-`;
-
-exports[`SMS 1`] = `
-{
-  "from": "0987654321",
-  "raw": "Hello this is a SMS message",
-  "to": "1234567890",
+  "from": "random@example.com",
+  "raw": "Hello this is an email",
+  "to": "test",
 }
 `;
