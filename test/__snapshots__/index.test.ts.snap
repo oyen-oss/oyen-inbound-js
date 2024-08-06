@@ -7,3 +7,11 @@ exports[`Inbound > Email 1`] = `
   "to": "test",
 }
 `;
+
+exports[`Inbound > SMS 1`] = `
+{
+  "from": "0987654321",
+  "raw": "Hello this is a SMS message",
+  "to": "1234567890",
+}
+`;

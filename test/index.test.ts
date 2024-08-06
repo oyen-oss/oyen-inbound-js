@@ -35,7 +35,7 @@ describe('Inbound', () => {
   const mockEventsAccessToken = 'e30.e30.';
   const mockTeamId = 'aaaaaaaaa';
 
-  test.only('Email', async () => {
+  test('Email', async () => {
     const handle = 'test';
     const domainName = 'oyenbound.com';
 
@@ -139,21 +139,24 @@ describe('Inbound', () => {
     const mockEventSourceId = 'ddddddd';
     const mockChannel = `inbox:${mockInboxId}`;
 
+    // list inboxes
     mockApi
       .intercept({
         method: 'get',
-        path: `/numbers/${number}`,
+        path: `/teams/${mockTeamId}/inboxes`,
       })
-      .reply<SmsInbox>(
+      .reply<SmsInbox[]>(
         200,
-        {
-          teamId: mockTeamId,
-          inboxId: mockInboxId,
-          kind: 'sms',
-          handle: number,
-          description: 'test only',
-          createTime: new Date().toISOString(),
-        } satisfies SmsInbox,
+        [
+          {
+            teamId: mockTeamId,
+            inboxId: mockInboxId,
+            kind: 'sms',
+            handle: number,
+            description: 'test only',
+            createTime: new Date().toISOString(),
+          } satisfies SmsInbox,
+        ],
         {
           headers: { 'content-type': 'application/json' },
         },
@@ -203,6 +206,7 @@ describe('Inbound', () => {
             enc: 'json',
             iat: new Date().toISOString(),
           } satisfies EventMessage<string>)}`,
+          '',
           '',
         ].join('\n'),
         {
