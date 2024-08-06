@@ -1,36 +1,39 @@
-import type { FetcherParams } from '@block65/rest-client';
+import type { RestServiceClientConfig } from '@block65/rest-client';
 import {
-  OyenEventStream,
-  type OyenEventSourceOptions as OyenEventStreamOptions,
+  OyenEventSource,
+  type OyenEventSourceOptions,
 } from '@oyen-oss/eventsource';
 import { InboundSetupError } from './errors.js';
 import {
-  GetDomainInboxCommand,
   GetInboxEventSourceCommand,
-  GetNumberInboxCommand,
+  ListInboxesCommand,
   OyenRestApiRestClient,
 } from './rest-client/main.js';
-import type { UnsubscribeFunction } from 'emittery';
 
-type CommonInboundOptions = {
+type CommonInboundConfig<T extends { email: string } | { sms: string }> = {
   teamId: string;
   accessToken: string;
-  apiOptions?: {
-    endpoint?: URL;
-    fetcher?: (params: FetcherParams) => Promise<any>;
+  logger?: (...args: unknown[]) => void;
+  apiOptions?: RestServiceClientConfig & {
+    endpoint?: URL | string;
   };
-};
+  eventStreamOptions?: Pick<
+    OyenEventSourceOptions<
+      T extends { email: string } ? EmailMessageData : SmsMessageData
+    >,
+    'options'
+  >;
+} & T;
 
-export type InboundEmailOptions = CommonInboundOptions & {
-  handle: string;
-  domainName: string;
-};
+export type InboundEmailConfig = CommonInboundConfig<{
+  email: string;
+}>;
 
-export type InboundSmsOptions = CommonInboundOptions & {
-  number: string;
-};
+export type InboundSmsConfig = CommonInboundConfig<{
+  sms: string;
+}>;
 
-export type InboundOptions = InboundEmailOptions | InboundSmsOptions;
+export type InboundConfig = InboundEmailConfig | InboundSmsConfig;
 
 export type EmailMessageData = {
   to: string;
@@ -46,127 +49,87 @@ export type SmsMessageData = {
 
 export type InboundMessageData = EmailMessageData | SmsMessageData;
 
-export class Inbound<
-  TParams extends InboundOptions,
-  TData extends InboundMessageData,
-> {
-  #client: OyenRestApiRestClient;
+function extractHandleAndDomain(email: string) {
+  const [handle, domainName] = email.split('@');
+  if (!handle || !domainName) {
+    throw new InboundSetupError('Invalid email').debug({ email });
+  }
+  return { handle, domainName: 'oyenbound.com' as const };
+}
 
-  #params: TParams;
+export class Inbound<TConfig extends InboundEmailConfig | InboundSmsConfig> {
+  readonly #client: OyenRestApiRestClient;
 
-  #eventStreamPromise?: Promise<OyenEventStream<TData>>;
+  readonly #config: TConfig;
 
-  #error?: Error | undefined;
+  readonly #logger?: ((...args: unknown[]) => void) | undefined;
 
-  #eventSourceOptions:
-    | Omit<
-        OyenEventStreamOptions<
-          TParams extends InboundEmailOptions
-            ? EmailMessageData
-            : SmsMessageData
-        >,
-        'teamId' | 'eventSourceId' | 'channels' | 'endpoint' | 'accessToken'
-      >
-    | undefined;
+  readonly #eventStream: Promise<
+    OyenEventSource<
+      TConfig extends InboundEmailConfig ? EmailMessageData : SmsMessageData
+    >
+  >;
 
-  /**
-   * @description Listen for messages
-   * @returns {UnsubscribeFunction} A function to stop listening
-   */
-  public on(eventName: 'message', listener: (data: TData) => void) {
-    if (this.#error) {
-      throw this.#error;
-    }
-
-    let unsubscribe: UnsubscribeFunction;
-    this.#eventStream.then((es) => {
-      unsubscribe = es.on(eventName, (m) => {
-        listener(m.d);
-      });
+  constructor(config: TConfig) {
+    this.#client = new OyenRestApiRestClient({
+      logger: config.logger,
+      ...config.apiOptions,
+      headers: {
+        authorization: `Bearer ${config.accessToken}`,
+        ...config.apiOptions?.headers,
+        'user-agent': `${import.meta.env.PACKAGE_NAME}/${import.meta.env.PACKAGE_VERSION}`,
+      },
     });
 
-    return () => {
-      unsubscribe?.();
-    };
+    this.#config = config;
+
+    this.#logger = config.logger;
+
+    this.#eventStream = this.#init();
   }
 
-  public async once(eventName: 'message'): Promise<TData> {
-    if (this.#error) {
-      throw this.#error;
-    }
-    const es = await this.#eventStream;
-    return es.once(eventName).then((m: { d: TData }) => m.d);
+  #log(msg: string, ...args: unknown[]) {
+    this.#logger?.(`[inbound] ${msg}`, ...args);
   }
 
-  public close() {
-    this.#eventStream.then((es) => es.close());
-  }
+  async #init() {
+    this.#log('Connecting event stream...');
+    const api = this.#client;
+    const config = this.#config;
 
-  constructor(
-    params: TParams,
-    eventSourceOptions?: Omit<
-      OyenEventStreamOptions<
-        TParams extends InboundEmailOptions ? EmailMessageData : SmsMessageData
-      >,
-      // these are specified by the retrieved inbox
-      'teamId' | 'eventSourceId' | 'channels' | 'endpoint' | 'accessToken'
-    >,
-  ) {
-    this.#client = new OyenRestApiRestClient(
-      params.apiOptions?.endpoint,
-      params.apiOptions?.fetcher,
-      {
-        headers: {
-          Authorization: `Bearer ${params.accessToken}`,
-        },
-      },
+    this.#log('Fetching inboxes...');
+
+    // TODO: need to add a GetInboxFromTeamCommand to not only get the inbox by
+    // domain, but on a specific team
+    const inboxes = await api.json(
+      new ListInboxesCommand({ teamId: config.teamId }),
     );
 
-    this.#params = params;
+    this.#log('Got %d inboxes', inboxes.length);
 
-    this.#eventSourceOptions = eventSourceOptions;
-  }
+    const inbox =
+      'email' in config
+        ? inboxes.find((i) => {
+            // TODO: absolutely no need to do this every loop iteration
+            const { handle, domainName } = extractHandleAndDomain(config.email);
+            return (
+              i.kind === 'email' &&
+              i.handle === handle &&
+              i.domain === domainName
+            );
+          })
+        : inboxes.find((i) => i.kind === 'sms' && i.handle === config.sms);
 
-  get #eventStream() {
-    if (!this.#eventStreamPromise) {
-      this.#eventStreamPromise = this.#connect();
-    }
-
-    // store or rest any errors during connect
-    this.#eventStreamPromise
-      .catch((e) => {
-        this.#error = e;
-      })
-      .then(() => {
-        this.#error = undefined;
-      });
-
-    return this.#eventStreamPromise;
-  }
-
-  async #connect() {
-    const client = this.#client;
-    const params = this.#params;
-
-    const inbox = await ('domainName' in params
-      ? client.json(
-          new GetDomainInboxCommand({
-            handle: params.handle,
-            domainName: params.domainName,
-          }),
-        )
-      : client.json(
-          new GetNumberInboxCommand({
-            handle: params.number,
-          }),
-        ));
+    this.#log('Found inbox %j', inbox);
 
     if (!inbox) {
       throw new InboundSetupError('Inbox not found').debug({
-        ...params,
-        accessToken: params.accessToken && '[REDACTED]',
+        ...config,
+        accessToken: config.accessToken && '[REDACTED]',
       });
     }
+
+    this.#log('Fetching event source for inbox %s', inbox.inboxId);
 
     const inboxEventSource = await this.#client.json(
       new GetInboxEventSourceCommand({
@@ -175,21 +138,40 @@ export class Inbound<
       }),
     );
 
-    // polyfill if needed
-    const eventSourceClass =
-      globalThis.EventSource ||
-      (await import('@oyen-oss/eventsource/eventsource')).EventSource;
+    this.#log('Got event source %s', inboxEventSource.endpoint);
 
-    return new OyenEventStream<
-      TParams extends InboundEmailOptions ? EmailMessageData : SmsMessageData
+    return new OyenEventSource<
+      TConfig extends InboundEmailConfig ? EmailMessageData : SmsMessageData
     >({
-      eventSourceClass,
-      ...this.#eventSourceOptions,
+      ...this.#config.eventStreamOptions,
+      logger: this.#logger,
       teamId: inboxEventSource.teamId,
       eventSourceId: inboxEventSource.eventSourceId,
       channels: [inboxEventSource.channelId],
       endpoint: inboxEventSource.endpoint,
       accessToken: inboxEventSource.accessToken,
     });
+  }
+
+  public async once(eventName: 'message') {
+    return this.#eventStream
+      .then((es) => {
+        this.#log('waiting for event=%s', eventName);
+        return es.once(eventName);
+      })
+      .then((message) => {
+        if (message) {
+          this.#log('to channel=%s, data=%j', message.ch, message.d);
+        } else {
+          this.#log('got null message');
+        }
+
+        return message?.d;
+      });
+  }
+
+  public async close() {
+    this.#log('closing connection!');
+    await this.#eventStream.then((es) => es.close());
   }
 }

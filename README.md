@@ -1,6 +1,6 @@
 # @oyen-oss/inbound
 
-Client library for the inbound message service from Oyen.
+Client library for the inbound message service from oyen.
 
 ## Install
 
@@ -18,8 +18,7 @@ import { Inbound } from '@oyen-oss/inbound';
 const email = await Inbound.from({
   teamId: '<your oyen team id>',
   accessToken: 'eyj...',
-  handle: 'test',
-  domain: 'oyenbound.com',
+  email: 'test@oyenbound.com',
 });
 
 const message = await email.once('message');
@@ -40,15 +39,15 @@ import { Inbound } from '@oyen-oss/inbound';
 const sms = await Inbound.from({
   teamId: '<your oyen team id>',
   accessToken: 'eyj...',
-  number,
+  sms: '+65 8888 8888',
 });
 
 const message = await sms.once('message');
 
 console.log(message);
 // {
-//   from: '2348123456789',
-//   to: '2348123456789',
+//   from: '+1234 456 7890',
+//   to: '+65 8888 8888',
 //   raw: 'Hello, World!',
 // }
 ```

@@ -1,1 +1,1 @@
-export { Inbound, type InboundOptions } from '../lib/inbound.js';
+export * from '../lib/inbound.js';

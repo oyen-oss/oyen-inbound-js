@@ -7,4 +7,5 @@ export {
   type RuntimeOptions,
   type Command,
   createIsomorphicNativeFetcher,
+  ServiceError,
 } from '@block65/rest-client';
