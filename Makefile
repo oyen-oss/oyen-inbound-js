@@ -1,6 +1,6 @@
 SRCS = $(wildcard lib/**)
 
-all: test build
+all: test dist build
 
 .PHONY: clean
 clean: node_modules
@@ -12,9 +12,9 @@ distclean: clean
 	rm -rf node_modules
 
 .PHONY: test
-test: node_modules build
-	pnpm exec tsc
+test: node_modules dist build
 	pnpm exec vitest run
+	$(MAKE) smoketest
 	pnpm exec bundlesize
 
 node_modules: package.json
@@ -39,7 +39,10 @@ pretty: node_modules
 	pnpm exec eslint --fix . || true
 	pnpm exec prettier --write .
 
-
 .PHONY: dev
 dev:
 	$(MAKE) -j 2 build-watch dist-watch
+
+.PHONY: smoketest
+smoketest: node_modules
+	node --input-type=module -e "import '@oyen-oss/inbound'"
