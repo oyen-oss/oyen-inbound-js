@@ -11,18 +11,47 @@ import {
 } from './rest-client/main.js';
 
 type CommonInboundConfig<T extends { email: string } | { sms: string }> = {
+  /**
+   * @description The oyen team id
+   */
   teamId: string;
+
+  /**
+   * @description An oyen access token
+   */
   accessToken: string;
+
+  /**
+   * @description Logger function for debugging, compatible with console.log
+   * @returns void
+   */
   logger?: (...args: unknown[]) => void;
+
+  /**
+   * @description Options for the underlying API client. You probably don't need
+   * this
+   */
   apiOptions?: RestServiceClientConfig & {
     endpoint?: URL | string;
   };
+
+  /**
+   * @description Options for the underlying event stream. You probably don't
+   * need this
+   */
   eventStreamOptions?: Pick<
     OyenEventSourceOptions<
       T extends { email: string } ? EmailMessageData : SmsMessageData
     >,
     'options'
   >;
+
+  /**
+   * @description If false, the client will initialise and connect only when
+   * needed
+   * @default true
+   */
+  autoConnect?: boolean;
 } & T;
 
 export type InboundEmailConfig = CommonInboundConfig<{
@@ -57,14 +86,14 @@ function extractHandleAndDomain(email: string) {
   return { handle, domainName: 'oyenbound.com' as const };
 }
 
-export class Inbound<TConfig extends InboundEmailConfig | InboundSmsConfig> {
+export class Inbound<TConfig extends InboundConfig> {
   readonly #client: OyenRestApiRestClient;
 
   readonly #config: TConfig;
 
   readonly #logger?: ((...args: unknown[]) => void) | undefined;
 
-  readonly #eventStream: Promise<
+  #eventStreamPromise?: Promise<
     OyenEventSource<
       TConfig extends InboundEmailConfig ? EmailMessageData : SmsMessageData
     >
@@ -85,11 +114,25 @@ export class Inbound<TConfig extends InboundEmailConfig | InboundSmsConfig> {
 
     this.#logger = config.logger;
 
-    this.#eventStream = this.#init();
+    if (config.autoConnect !== false) {
+      this.connect();
+    }
+  }
+
+  public async connect() {
+    this.#eventStreamPromise ??= this.#init();
   }
 
   #log(msg: string, ...args: unknown[]) {
     this.#logger?.(`[inbound] ${msg}`, ...args);
+  }
+
+  public async ready() {
+    if (!this.#eventStreamPromise) {
+      return false;
+    }
+    // we are considered "ready" when the event stream is connected
+    return this.#eventStreamPromise.then((es) => es.connected);
   }
 
   async #init() {
@@ -154,24 +197,51 @@ export class Inbound<TConfig extends InboundEmailConfig | InboundSmsConfig> {
   }
 
   public async once(eventName: 'message') {
-    return this.#eventStream
-      .then((es) => {
-        this.#log('waiting for event=%s', eventName);
-        return es.once(eventName);
-      })
-      .then((message) => {
-        if (message) {
-          this.#log('to channel=%s, data=%j', message.ch, message.d);
-        } else {
-          this.#log('got null message');
-        }
+    if (!this.#eventStreamPromise) {
+      throw new InboundSetupError(
+        'Not connected. Did you call connect or turn off autoConnect?',
+      );
+    }
 
-        return message?.d;
-      });
+    const es = await this.#eventStreamPromise;
+
+    this.#log('waiting once event=%s', eventName);
+    const message = await es.once(eventName);
+
+    if (message) {
+      this.#log('to channel=%s, data=%j', message.ch, message.d);
+    } else {
+      this.#log('got empty message: %j', message);
+    }
+
+    return message?.d;
+  }
+
+  public async *stream(eventName: 'message') {
+    if (!this.#eventStreamPromise) {
+      throw new InboundSetupError(
+        'Not connected. Did you call connect or turn off autoConnect?',
+      );
+    }
+
+    const es = await this.#eventStreamPromise;
+
+    this.#log('streaming events=%s', eventName);
+
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const message of es.listen(eventName)) {
+      if (message) {
+        this.#log('to channel=%s, data=%j', message.ch, message.d);
+      } else {
+        this.#log('got empty message: %j', message);
+      }
+
+      yield message?.d;
+    }
   }
 
   public async close() {
     this.#log('closing connection!');
-    await this.#eventStream.then((es) => es.close());
+    await this.#eventStreamPromise?.then((es) => es.close());
   }
 }

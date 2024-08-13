@@ -15,10 +15,15 @@ console.log('Waiting to receive....');
 const message = await inbound.once('message');
 
 if (message) {
-  console.log('received email from %s to %s', message?.to, message?.from);
-} else {
-  console.log('no email received');
+  console.log('received msg from %s to %s', message.to, message.from);
 }
 
-// clean up
+// eslint-disable-next-line no-restricted-syntax
+for await (const msg of inbound.stream('message')) {
+  if (msg) {
+    console.log('received msg from %s to %s', msg.to, msg.from);
+  }
+}
+
+// clean up like a good citizen
 inbound.close();
