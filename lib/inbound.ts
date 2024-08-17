@@ -2,8 +2,7 @@ import type { RestServiceClientConfig } from '@block65/rest-client';
 import {
   OyenEventSource,
   type OyenEventSourceOptions,
-} from '@oyen-oss/eventsource';
-import { InboundSetupError } from './errors.js';
+} from '@oyenjs/eventsource';
 import {
   GetInboxEventSourceCommand,
   ListInboxesCommand,

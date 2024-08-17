@@ -1,5 +1,5 @@
 {
-  "name": "@oyen-oss/inbound",
+  "name": "@oyenjs/inbound",
   "version": "3.0.2",
   "repository": {
     "type": "git",
@@ -26,12 +26,13 @@
   "dependencies": {
     "@block65/custom-error": "^12.2.0",
     "@block65/rest-client": "^11.0.2",
-    "@oyen-oss/eventsource": "^4.1.0"
+    "@oyenjs/eventsource": "^5.0.0",
+    "@oyenjs/diddy-dom": "^0.2.1"
   },
   "devDependencies": {
     "@block65/bundlesize": "^1.0.1",
     "@block65/eslint-config": "^12.0.1",
-    "@oyen-oss/keys": "^3.0.0",
+    "@oyenjs/keys": "^4.0.0",
     "@types/node": "^22.1.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",

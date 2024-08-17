@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { Inbound } from '@oyen-oss/inbound';
+import { Inbound } from '@oyenjs/inbound';
 
 const teamId = 'example';
 const sms = '+65 8888 8888';

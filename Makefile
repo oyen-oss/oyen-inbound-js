@@ -45,4 +45,4 @@ dev:
 
 .PHONY: smoketest
 smoketest: node_modules
-	node --input-type=module -e "import '@oyen-oss/inbound'"
+	node --input-type=module -e "import '@oyenjs/inbound'"
