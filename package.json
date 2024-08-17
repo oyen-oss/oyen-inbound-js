@@ -26,8 +26,8 @@
   "dependencies": {
     "@block65/custom-error": "^12.2.0",
     "@block65/rest-client": "^11.0.2",
-    "@oyenjs/eventsource": "^5.0.0",
-    "@oyenjs/diddy-dom": "^0.2.1"
+    "@oyenjs/diddy-dom": "^0.2.1",
+    "@oyenjs/eventsource": "^5.0.0"
   },
   "devDependencies": {
     "@block65/bundlesize": "^1.0.1",
