@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { Inbound } from '@oyen-oss/inbound';
+import { Inbound } from '@oyenjs/inbound';
 
 const teamId = 'example';
 const sms = '+65 8888 8888';
@@ -12,10 +12,11 @@ const inbound = new Inbound({
 });
 
 console.log('Waiting to receive SMS....');
-const message = await inbound.once('message');
+const message = await inbound.once();
 
 if (message) {
-  console.log('received SMS from %s to %s', message?.to, message?.from);
+  const extract = await message.extract();
+  console.log('received SMS message from %s', extract.from);
 } else {
   console.log('no SMS received');
 }

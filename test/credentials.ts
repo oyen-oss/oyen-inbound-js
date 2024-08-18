@@ -1,4 +1,4 @@
-import { signToken } from '@oyen-oss/keys';
+import { signToken } from '@oyenjs/keys';
 
 const keys = await crypto.subtle
   .generateKey(

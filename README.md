@@ -1,11 +1,11 @@
-# @oyen-oss/inbound
+# @oyenjs/inbound
 
 Client library for the inbound message service from oyen.
 
 ## Install
 
 ```bash
-npm install @oyen-oss/inbound
+npm install @oyenjs/inbound
 ```
 
 ## Usage
@@ -13,12 +13,12 @@ npm install @oyen-oss/inbound
 #### Email
 
 ```typescript
-import { Inbound } from '@oyen-oss/inbound';
+import { Inbound } from '@oyenjs/inbound';
 
 const email = await Inbound.from({
   teamId: '<your oyen team id>',
   accessToken: 'eyj...',
-  email: 'test@oyenbound.com',
+  email: 'test@example.oyenmail.com',
 });
 
 const message = await email.once('message');
@@ -26,7 +26,7 @@ const message = await email.once('message');
 console.log(message);
 // {
 //   from: 'somewhere@example.com',
-//   to: 'test@oyenbound.com',
+//   to: 'test@example.oyenmail.com',
 //   raw: '<mime encoded email>',
 // }
 ```
@@ -34,7 +34,7 @@ console.log(message);
 #### SMS
 
 ```typescript
-import { Inbound } from '@oyen-oss/inbound';
+import { Inbound } from '@oyenjs/inbound';
 
 const sms = await Inbound.from({
   teamId: '<your oyen team id>',
