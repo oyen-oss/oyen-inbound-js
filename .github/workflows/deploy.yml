@@ -20,8 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
-          node-version: 20
-          registry-url: 'https://npm.pkg.github.com/'
+          node-version-file: '.node-version'
+          registry-url: 'https://registry.npmjs.org'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
