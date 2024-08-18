@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Inbound > Email 1`] = `
+{
+  "createTime": "2021-01-01T00:00:00.000Z",
+  "inboxId": "ememememe",
+  "messageId": "msgemememe",
+  "rawSize": 3,
+  "sha256": "d2b0f7f5c7c5f3d3d3",
+  "teamId": "tetetete",
+  "url": "https://messages.oyenusercontent.com/msgemememe",
+}
+`;
+
+exports[`Inbound > Email 2`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Hello, world!",
+        },
+      ],
+      "properties": {},
+      "tagName": "p",
+      "type": "element",
+    },
+  ],
+  "type": "root",
+}
+`;

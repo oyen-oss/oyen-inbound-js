@@ -3,22 +3,44 @@ import {
   OyenEventSource,
   type OyenEventSourceOptions,
 } from '@oyenjs/eventsource';
+import type { EmailExtract } from './email-types.js';
+import { InboundInitError } from './errors.js';
+import { LazyPromise } from './lazy-promise.js';
 import {
   GetInboxEventSourceCommand,
+  GetMessageCommand,
   ListInboxesCommand,
   OyenRestApiRestClient,
+  type EmailInbox,
+  type GetMessageCommandParams,
+  type InboxEventSource,
+  type Message,
+  type SmsInbox,
 } from './rest-client/main.js';
+import type { SMSExtract } from './sms-types.js';
 
-type CommonInboundConfig<T extends { email: string } | { sms: string }> = {
-  /**
-   * @description The oyen team id
-   */
-  teamId: string;
+export type EmailEventMessageData = Pick<
+  Message,
+  'teamId' | 'inboxId' | 'messageId'
+>;
 
-  /**
-   * @description An oyen access token
-   */
-  accessToken: string;
+export type SmsEventMessageData = Pick<
+  Message,
+  'teamId' | 'inboxId' | 'messageId'
+>;
+
+type InboundMessageData = EmailEventMessageData | SmsEventMessageData;
+
+type CommonOptions = {
+  // /**
+  //  * @description The oyen team id
+  //  */
+  // teamId: string;
+
+  // /**
+  //  * @description An oyen access token
+  //  */
+  // accessToken: string;
 
   /**
    * @description Logger function for debugging, compatible with console.log
@@ -27,220 +49,350 @@ type CommonInboundConfig<T extends { email: string } | { sms: string }> = {
   logger?: (...args: unknown[]) => void;
 
   /**
-   * @description Options for the underlying API client. You probably don't need
-   * this
-   */
-  apiOptions?: RestServiceClientConfig & {
-    endpoint?: URL | string;
-  };
-
-  /**
-   * @description Options for the underlying event stream. You probably don't
+   * @description Options for the underlying event source. You probably don't
    * need this
    */
-  eventStreamOptions?: Pick<
-    OyenEventSourceOptions<
-      T extends { email: string } ? EmailMessageData : SmsMessageData
-    >,
-    'options'
-  >;
+  eventSourceOptions?: OyenEventSourceOptions<InboundMessageData>['eventSourceOptions'];
 
   /**
-   * @description If false, the client will initialise and connect only when
-   * needed
-   * @default true
+   * @description  If set to `false`, the Inbound instance will not connect or
+   * call the API until you listen for messages.
    */
-  autoConnect?: boolean;
-} & T;
+  lazy?: boolean;
 
-export type InboundEmailConfig = CommonInboundConfig<{
+  fetch?: (url: string | URL, options?: RequestInit) => Promise<Response>;
+  controller?: AbortController;
+} & (
+  | {
+      client?: OyenRestApiRestClient;
+    }
+  | {
+      accessToken: string;
+      restClientConfig?: RestServiceClientConfig & {
+        endpoint?: URL | string;
+      };
+    }
+);
+
+type EmailOptions = {
+  teamId: string;
   email: string;
-}>;
+} & CommonOptions;
 
-export type InboundSmsConfig = CommonInboundConfig<{
+type SmsOptions = {
+  teamId: string;
   sms: string;
-}>;
+} & CommonOptions;
 
-export type InboundConfig = InboundEmailConfig | InboundSmsConfig;
+type EmailEventSourceOptions = {
+  inbox: EmailInbox;
+  es: InboxEventSource;
+} & CommonOptions;
 
-export type EmailMessageData = {
-  to: string;
-  from: string;
-  raw: string;
-};
+type SmsEventSourceOptions = {
+  inbox: SmsInbox;
+  es: InboxEventSource;
+} & CommonOptions;
 
-export type SmsMessageData = {
-  to: string;
-  from: string;
-  raw: string;
-};
-
-export type InboundMessageData = EmailMessageData | SmsMessageData;
+export type InboundOptions =
+  | EmailOptions
+  | SmsOptions
+  | EmailEventSourceOptions
+  | SmsEventSourceOptions;
 
 function extractHandleAndDomain(email: string) {
   const [handle, domainName] = email.split('@');
   if (!handle || !domainName) {
-    throw new InboundSetupError('Invalid email').debug({ email });
+    throw new InboundInitError('Invalid email').debug({ email });
   }
-  return { handle, domainName: 'oyenbound.com' as const };
+  return { handle, domainName };
 }
 
-export class Inbound<TConfig extends InboundConfig> {
-  readonly #client: OyenRestApiRestClient;
+function errToStr(err: unknown): string {
+  if (err instanceof Error) {
+    if ('cause' in err && err.cause) {
+      return `${err.message} caused by ${errToStr(err.cause)}`;
+    }
+    if ('code' in err && err.code) {
+      return `${err.message} (code ${err.code})`;
+    }
+    return err.message;
+  }
+  return String(err);
+}
 
-  readonly #config: TConfig;
+const kLog = Symbol('log');
+const kWarn = Symbol('warn');
+const kInitPromise = Symbol('init');
+const kAbortController = Symbol('controller');
+const kConfig = Symbol('config');
+const kClient = Symbol('client');
 
-  readonly #logger?: ((...args: unknown[]) => void) | undefined;
+function inline<T>(fn: () => T): T {
+  return fn();
+}
 
-  #eventStreamPromise?: Promise<
-    OyenEventSource<
-      TConfig extends InboundEmailConfig ? EmailMessageData : SmsMessageData
-    >
-  >;
+export class Inbound<TConfig extends InboundOptions> {
+  private readonly [kConfig]: TConfig & CommonOptions;
+
+  private [kInitPromise]: Promise<{
+    inbox: EmailInbox | SmsInbox;
+    es: OyenEventSource<
+      TConfig extends EmailEventSourceOptions | EmailOptions
+        ? EmailEventMessageData
+        : TConfig extends SmsEventSourceOptions | SmsOptions
+          ? SmsEventMessageData
+          : never
+    >;
+  }>;
+
+  private [kAbortController] = new AbortController();
+
+  private [kClient]: OyenRestApiRestClient;
 
   constructor(config: TConfig) {
-    this.#client = new OyenRestApiRestClient({
-      logger: config.logger,
-      ...config.apiOptions,
-      headers: {
-        authorization: `Bearer ${config.accessToken}`,
-        ...config.apiOptions?.headers,
-        'user-agent': `${import.meta.env.PACKAGE_NAME}/${import.meta.env.PACKAGE_VERSION}`,
-      },
+    this[kConfig] = config;
+
+    this[kClient] = inline(() => {
+      if ('client' in config) {
+        return config.client;
+      }
+
+      if ('accessToken' in config) {
+        const overrideConfig = config.restClientConfig;
+
+        return new OyenRestApiRestClient({
+          ...overrideConfig,
+          headers: {
+            authorization: `Bearer ${config.accessToken}`,
+            ...overrideConfig?.headers,
+            'user-agent': [
+              `${import.meta.env.PACKAGE_NAME}/${import.meta.env.PACKAGE_VERSION}`,
+              overrideConfig?.headers?.['user-agent'],
+            ]
+              .join(' ')
+              .trim(),
+          },
+        });
+      }
+
+      throw new InboundInitError(
+        'Invalid config. Needs one of accessToken or client',
+      ).debug(config);
     });
 
-    this.#config = config;
+    this[kInitPromise] =
+      'es' in config
+        ? LazyPromise.from(async () => ({
+            inbox: config.inbox,
+            es: await this.#initEs(config.es),
+          }))
+        : LazyPromise.from(() => this.#initEsViaApi(config));
 
-    this.#logger = config.logger;
-
-    if (config.autoConnect !== false) {
-      this.connect();
+    if (!('lazy' in config) || !!config.lazy) {
+      // calling catch here on a LazyPromise starts it all off
+      this[kInitPromise].catch((err) => {
+        this[kWarn]('error during connect: %s', errToStr(err));
+      });
     }
   }
 
   public async connect() {
-    this.#eventStreamPromise ??= this.#init();
+    this[kLog]('awaiting connect...');
+    await this[kInitPromise].then(({ es }) => es.connected);
+    this[kLog]('connected');
   }
 
-  #log(msg: string, ...args: unknown[]) {
-    this.#logger?.(`[inbound] ${msg}`, ...args);
+  public get readyState() {
+    return this[kInitPromise].then(({ es }) => es.readyState);
   }
 
-  public async ready() {
-    if (!this.#eventStreamPromise) {
-      return false;
-    }
-    // we are considered "ready" when the event stream is connected
-    return this.#eventStreamPromise.then((es) => es.connected);
+  private [kLog](msg: string, ...args: unknown[]) {
+    this[kConfig].logger?.(
+      `${new Date().toISOString()} [inbound] ${msg}`,
+      ...args,
+    );
   }
 
-  async #init() {
-    this.#log('Connecting event stream...');
-    const api = this.#client;
-    const config = this.#config;
+  private [kWarn](msg: string, ...args: unknown[]) {
+    this[kLog](`WARN ${msg}`, ...args);
+  }
 
-    this.#log('Fetching inboxes...');
+  async #initEs(inboxEventSource: InboxEventSource) {
+    return new OyenEventSource<
+      TConfig extends EmailEventSourceOptions | EmailOptions
+        ? EmailEventMessageData
+        : TConfig extends SmsEventSourceOptions | SmsOptions
+          ? SmsEventMessageData
+          : never
+    >({
+      logger: this[kConfig].logger,
+      teamId: inboxEventSource.teamId,
+      eventSourceId: inboxEventSource.eventSourceId,
+      channels: [inboxEventSource.channel],
+      endpoint: inboxEventSource.endpoint,
+      accessToken: inboxEventSource.accessToken,
+      ...(this[kConfig].eventSourceOptions && {
+        eventSourceOptions: this[kConfig].eventSourceOptions,
+      }),
+    });
+  }
 
-    // TODO: need to add a GetInboxFromTeamCommand to not only get the inbox by
-    // domain, but on a specific team
-    const inboxes = await api.json(
-      new ListInboxesCommand({ teamId: config.teamId }),
+  async #initEsViaApi<T extends EmailOptions | SmsOptions>(params: T) {
+    this[kLog]('Listing inboxes...');
+
+    // TODO: need to add a `GetInboxFromTeamCommand` to not only get the inbox
+    // by domain, but on a specific team
+    const inboxes = await this[kClient].json(
+      new ListInboxesCommand({ teamId: params.teamId }),
+      {
+        signal: this[kAbortController].signal,
+      },
     );
 
-    this.#log('Got %d inboxes', inboxes.length);
+    this[kLog]('Inboxes found: %d', inboxes.length);
 
     const inbox =
-      'email' in config
-        ? inboxes.find((i) => {
+      'email' in params
+        ? inboxes.find((i): i is EmailInbox => {
             // TODO: absolutely no need to do this every loop iteration
-            const { handle, domainName } = extractHandleAndDomain(config.email);
+            const { handle, domainName } = extractHandleAndDomain(params.email);
             return (
               i.kind === 'email' &&
               i.handle === handle &&
               i.domain === domainName
             );
           })
-        : inboxes.find((i) => i.kind === 'sms' && i.handle === config.sms);
-
-    this.#log('Found inbox %j', inbox);
+        : inboxes.find(
+            (i): i is SmsInbox => i.kind === 'sms' && i.handle === params.sms,
+          );
 
     if (!inbox) {
-      throw new InboundSetupError('Inbox not found').debug({
-        ...config,
-        accessToken: config.accessToken && '[REDACTED]',
-      });
+      throw new InboundInitError('Inbox not found').debug(params);
     }
 
-    this.#log('Fetching event source for inbox %s', inbox.inboxId);
+    this[kLog]('Getting inbox event source for inbox "%s"', inbox.inboxId);
 
-    const inboxEventSource = await this.#client.json(
+    const inboxEventSource = await this[kClient].json(
       new GetInboxEventSourceCommand({
         teamId: inbox.teamId,
         inboxId: inbox.inboxId,
       }),
     );
 
-    this.#log('Got event source %s', inboxEventSource.endpoint);
+    return {
+      inbox,
+      es: await this.#initEs(inboxEventSource),
+    };
+  }
 
-    return new OyenEventSource<
-      TConfig extends InboundEmailConfig ? EmailMessageData : SmsMessageData
-    >({
-      ...this.#config.eventStreamOptions,
-      logger: this.#logger,
-      teamId: inboxEventSource.teamId,
-      eventSourceId: inboxEventSource.eventSourceId,
-      channels: [inboxEventSource.channelId],
-      endpoint: inboxEventSource.endpoint,
-      accessToken: inboxEventSource.accessToken,
+  public async ready() {
+    this[kLog]('Checking for readiness...');
+
+    await this[kInitPromise].then(async ({ es }) => {
+      this[kLog]('init resolved: es is %s', es.readyState);
+      await es.connected;
+      this[kLog]('es connected: es is %s', es.readyState);
     });
+
+    this[kLog]('OK ready');
   }
 
-  public async once(eventName: 'message') {
-    if (!this.#eventStreamPromise) {
-      throw new InboundSetupError(
-        'Not connected. Did you call connect or turn off autoConnect?',
-      );
-    }
+  async #getMessage(params: GetMessageCommandParams) {
+    const message = await this[kClient].json(new GetMessageCommand(params), {
+      signal: this[kAbortController].signal,
+    });
 
-    const es = await this.#eventStreamPromise;
+    this[kLog]('Message retrieved: %j', message);
 
-    this.#log('waiting once event=%s', eventName);
-    const message = await es.once(eventName);
+    const { inbox } = await this[kInitPromise];
 
-    if (message) {
-      this.#log('to channel=%s, data=%j', message.ch, message.d);
-    } else {
-      this.#log('got empty message: %j', message);
-    }
+    const fetch =
+      'fetch' in this[kConfig] ? this[kConfig].fetch : globalThis.fetch;
 
-    return message?.d;
+    const url = new URL(message.url);
+    const extractUrl = new URL(`${url.pathname}/${inbox.kind}.json`, url);
+
+    // this could be moved into the extract function if needed
+    const res = await fetch(extractUrl, {
+      headers: {
+        accept: 'application/json',
+      },
+      signal: this[kAbortController].signal,
+    });
+
+    // allows extract to be called multiple times
+    // without reading the response body twice
+    const json = LazyPromise.from(() => res.json());
+
+    return {
+      source: message,
+      extract: async (): Promise<
+        TConfig extends EmailEventSourceOptions | EmailOptions
+          ? EmailExtract
+          : TConfig extends SmsEventSourceOptions | SmsOptions
+            ? SMSExtract
+            : never
+      > => json,
+    };
   }
 
-  public async *stream(eventName: 'message') {
-    if (!this.#eventStreamPromise) {
-      throw new InboundSetupError(
-        'Not connected. Did you call connect or turn off autoConnect?',
-      );
-    }
+  public async once(eventName?: never) {
+    this[kLog]('once requested for eventName=%s', eventName || 'unspecified');
+    const { es } = await this[kInitPromise];
 
-    const es = await this.#eventStreamPromise;
-
-    this.#log('streaming events=%s', eventName);
+    this[kLog]('waiting once event=%s', eventName);
 
     // eslint-disable-next-line no-restricted-syntax
-    for await (const message of es.listen(eventName)) {
-      if (message) {
-        this.#log('to channel=%s, data=%j', message.ch, message.d);
-      } else {
-        this.#log('got empty message: %j', message);
-      }
+    for await (const event of es.listen(eventName)) {
+      this[kLog]('got event=%j', event);
 
-      yield message?.d;
+      if (event) {
+        return this.#getMessage({
+          teamId: event.d.teamId,
+          inboxId: event.d.inboxId,
+          messageId: event.d.messageId,
+        });
+      }
+    }
+
+    throw new InboundInitError('Event source closed unexpectedly');
+  }
+
+  public async *stream(eventName?: never) {
+    this[kLog]('stream requested for eventName=%s', eventName || 'unspecified');
+
+    const { es } = await this[kInitPromise];
+
+    this[kLog]('streaming events=%s', eventName);
+
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const event of es.listen(eventName)) {
+      this[kLog]('got event=%j', event);
+
+      if (event) {
+        yield this.#getMessage({
+          teamId: event.d.teamId,
+          inboxId: event.d.inboxId,
+          messageId: event.d.messageId,
+        });
+      } else {
+        yield null;
+      }
     }
   }
 
   public async close() {
-    this.#log('closing connection!');
-    await this.#eventStreamPromise?.then((es) => es.close());
+    this[kLog]('closing...');
+    this[kAbortController].abort();
+    this[kAbortController] = new AbortController();
+
+    // never throw during close
+    try {
+      const { es } = await this[kInitPromise];
+      await es.close().then(() => this[kLog]('closed successfully'));
+    } catch (err) {
+      this[kWarn]('error closing: %s', errToStr(err));
+    }
   }
 }

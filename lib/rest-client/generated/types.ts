@@ -124,7 +124,7 @@ export type Timestamps = {
 export type InboxEventSource = Timestamps & {
   teamId: Id;
   eventSourceId: Id;
-  channelId: Id;
+  channel: Id;
   endpoint: string;
   accessToken: TokenSchema;
 };
@@ -134,7 +134,7 @@ export type EmailInbox = Timestamps & {
   inboxId: Id;
   kind: 'email';
   handle: EmailHandle;
-  domain: 'oyenbound.com';
+  domain: 'example.oyenmail.com';
   description?: Description;
 };
 export type EmailInboxList = EmailInbox[];

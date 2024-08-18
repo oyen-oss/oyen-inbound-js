@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Errors > ready throws if timedout 1`] = `[TimeoutError: The operation was aborted due to timeout]`;

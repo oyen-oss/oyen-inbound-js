@@ -18,7 +18,7 @@ import { Inbound } from '@oyenjs/inbound';
 const email = await Inbound.from({
   teamId: '<your oyen team id>',
   accessToken: 'eyj...',
-  email: 'test@oyenbound.com',
+  email: 'test@example.oyenmail.com',
 });
 
 const message = await email.once('message');
@@ -26,7 +26,7 @@ const message = await email.once('message');
 console.log(message);
 // {
 //   from: 'somewhere@example.com',
-//   to: 'test@oyenbound.com',
+//   to: 'test@example.oyenmail.com',
 //   raw: '<mime encoded email>',
 // }
 ```

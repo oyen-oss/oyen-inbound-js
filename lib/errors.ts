@@ -1,11 +1,13 @@
 /* eslint-disable max-classes-per-file */
 import { CustomError, Status } from '@block65/custom-error';
 
-export class InboundSetupError extends CustomError {
+export class InboundError extends CustomError {}
+
+export class InboundInitError extends InboundError {
   public override code = Status.FAILED_PRECONDITION;
 }
 
-export class InboundEventSourceError extends CustomError {
+export class InboundEventSourceError extends InboundError {
   constructor(
     statusCode: Status,
     message: string | undefined = Status[statusCode],
