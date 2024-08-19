@@ -1,7 +1,7 @@
 import type { EventMessage } from '@oyenjs/eventsource';
-import type { Root } from 'hast';
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { afterEach, beforeAll, describe, expect, test, vitest } from 'vitest';
+import type { EmailExtractJSON } from '../lib/rest-client/extracts.js';
 import type {
   EmailInbox,
   InboxEventSource,
@@ -63,7 +63,7 @@ describe('Inbound', () => {
     fakeEventStreamEndpoint.searchParams.set('channels', mockChannel);
 
     const mockEmailMessageContentUrlPrefix = new URL(
-      `/${mockEmailMessageId}`,
+      `/u/${mockTeamId}/${mockEmailInboxId}/${mockEmailMessageId}/1970/0/ffffffffffff/email`,
       userContentEndpoint,
     );
     const mockUserContent = fetchMock.get(
@@ -151,26 +151,35 @@ describe('Inbound', () => {
     // message content
     mockUserContent
       .intercept({
-        path: `${mockEmailMessageContentUrlPrefix.pathname}/email.json`,
+        path: `${mockEmailMessageContentUrlPrefix.pathname}.json`,
       })
-      .reply<Root>(
+      .reply<EmailExtractJSON>(
         200,
         {
-          type: 'root',
-          children: [
-            {
-              type: 'element',
-              tagName: 'p',
-              properties: {},
+          kind: 'email',
+          headers: {
+            raw: {},
+          },
+          html: {
+            raw: '<p>Hello, world!</p>',
+            json: {
+              type: 'root',
               children: [
                 {
-                  type: 'text',
-                  value: 'Hello, world!',
+                  type: 'element',
+                  tagName: 'p',
+                  properties: {},
+                  children: [
+                    {
+                      type: 'text',
+                      value: 'Hello, world!',
+                    },
+                  ],
                 },
               ],
             },
-          ],
-        },
+          },
+        } satisfies EmailExtractJSON,
         {
           headers: { 'content-type': 'text/json' },
         },
@@ -188,6 +197,7 @@ describe('Inbound', () => {
           teamId: mockTeamId,
           inboxId: mockEmailInboxId,
           messageId: mockEmailMessageId,
+          kind: 'email',
           url: mockEmailMessageContentUrlPrefix.toString(),
           createTime: new Date().toISOString(),
           rawSize: 3,
@@ -201,7 +211,7 @@ describe('Inbound', () => {
     const inboundEmail = new Inbound({
       teamId: mockTeamId,
       accessToken: fakeInboundApiToken,
-      email: `${handle}@${domainName}`,
+      emailAddress: `${handle}@${domainName}`,
       // eslint-disable-next-line no-console
       logger: console.log,
       restClientConfig: {
@@ -211,15 +221,13 @@ describe('Inbound', () => {
       },
     });
 
-    const { source, extract } = await inboundEmail.once();
-
-    expect(source).toMatchSnapshot();
-    await expect(extract()).resolves.toMatchSnapshot();
+    const extracted = await inboundEmail.once();
+    await expect(extracted).toMatchSnapshot();
 
     inboundEmail.close();
   });
 
-  test.skip('SMS', async () => {
+  test('SMS', async () => {
     const number = '1234567890';
 
     const mockSmsInboxId = 'smsmsmsmsms';
@@ -307,7 +315,7 @@ describe('Inbound', () => {
     const inboundSms = new Inbound({
       teamId: mockTeamId,
       accessToken: fakeInboundApiToken,
-      sms: number,
+      phoneNumber: number,
       // eslint-disable-next-line no-console
       logger: console.log,
     });

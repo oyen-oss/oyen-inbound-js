@@ -1,30 +1,35 @@
 /* eslint-disable no-console */
+/* eslint-disable no-restricted-syntax */
 import { Inbound } from '@oyenjs/inbound';
 
-const teamId = 'example';
-const email = 'test@example.oyenmail.com';
-const accessToken = 'e30.e30....';
-
 const inbound = new Inbound({
-  teamId,
-  accessToken,
-  email,
+  teamId: 'example',
+  accessToken: 'e30.e30....',
+  emailAddress: 'test@example.oyenmail.com',
+  es: 'test',
 });
 
-console.log('Waiting to receive....');
-const first = await inbound.once();
-
-if (first) {
-  const data = await first.extract();
-  console.log('received msg id %s', data.headers.get('message-id'));
-}
+console.log('Waiting to receive some emails...');
 
 try {
-  // eslint-disable-next-line no-restricted-syntax
-  for await (const message of inbound.stream()) {
-    if (message) {
-      const data = await message.extract();
-      console.log('received msg %s', data.headers.get('message-id'));
+  for await (const email of inbound.stream()) {
+    if (email !== null) {
+      console.log('received msg %s', email.headers.get('message-id'));
+    }
+
+    const links = email.html?.document.selectAll('a') || [];
+
+    // "click" all of the links
+    for await (const link of links) {
+      if (link.properties.href) {
+        console.log('"clicking" link %s', link.properties.href);
+        await fetch(link.properties.href.toString(), {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Oyen',
+          },
+        });
+      }
     }
   }
 

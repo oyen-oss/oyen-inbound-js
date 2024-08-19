@@ -5,7 +5,7 @@
  *
  * WARN: Do not edit directly.
  *
- * Generated on 2024-07-27T04:59:41.172Z
+ * Generated on 2024-08-19T05:17:33.445Z
  *
  */
 /** eslint-disable max-classes */
@@ -63,8 +63,8 @@ import type {
   GetTokenCommandInput,
   GetUserSettingsCommandBody,
   GetUserSettingsCommandInput,
+  Inbox,
   InboxEventSource,
-  InboxKind,
   InboxList,
   Key,
   Keys,
@@ -318,7 +318,7 @@ export class ListInboxesCommand extends Command<
  */
 export class CreateInboxCommand extends Command<
   CreateInboxCommandInput,
-  InboxKind,
+  Inbox,
   CreateInboxCommandBody
 > {
   public override method = 'post' as const;
@@ -335,7 +335,7 @@ export class CreateInboxCommand extends Command<
  */
 export class GetInboxCommand extends Command<
   GetInboxCommandInput,
-  InboxKind,
+  Inbox,
   GetInboxCommandBody
 > {
   public override method = 'get' as const;
@@ -352,7 +352,7 @@ export class GetInboxCommand extends Command<
  */
 export class UpdateInboxCommand extends Command<
   UpdateInboxCommandInput,
-  InboxKind,
+  Inbox,
   UpdateInboxCommandBody
 > {
   public override method = 'put' as const;

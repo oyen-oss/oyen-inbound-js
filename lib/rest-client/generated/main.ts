@@ -3,7 +3,7 @@
  *
  * WARN: Do not edit directly.
  *
- * Generated on 2024-07-27T04:49:27.280Z
+ * Generated on 2024-08-19T05:17:33.445Z
  *
  */
 import {
@@ -39,8 +39,8 @@ import type {
   GetTeamCommandInput,
   GetTokenCommandInput,
   GetUserSettingsCommandInput,
+  Inbox,
   InboxEventSource,
-  InboxKind,
   InboxList,
   Key,
   Keys,
@@ -70,6 +70,7 @@ import type {
   TeamMembers,
   Teams,
   Token,
+  TokenWithJwt,
   Tokens,
   UpdateEventSourceCommandInput,
   UpdateInboxCommandInput,
@@ -131,8 +132,8 @@ type AllOutputs =
   | EmailInboxList
   | EventSource
   | EventSources
+  | Inbox
   | InboxEventSource
-  | InboxKind
   | InboxList
   | Key
   | Keys
@@ -152,14 +153,17 @@ type AllOutputs =
   | Teams
   | Token
   | Tokens
+  | TokenWithJwt
   | UserSettings;
 
 export class OyenRestApiRestClient extends RestServiceClient<
   AllInputs,
   AllOutputs
 > {
-  constructor(config: RestServiceClientConfig & { endpoint?: URL | string }) {
-    const { endpoint = 'https://api.oyen.io', ...rest } = config;
-    super(endpoint, rest);
+  constructor(
+    baseUrl = new URL('https://api.oyen.io/'),
+    config?: RestServiceClientConfig,
+  ) {
+    super(baseUrl, config);
   }
 }

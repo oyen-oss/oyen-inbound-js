@@ -2,10 +2,15 @@ import type { RestServiceClientConfig } from '@block65/rest-client';
 import {
   OyenEventSource,
   type OyenEventSourceOptions,
+  type ReadyState,
 } from '@oyenjs/eventsource';
-import type { EmailExtract } from './email-types.js';
 import { InboundInitError } from './errors.js';
+import { extractJsonToExtractHelper } from './extract-builder.js';
 import { LazyPromise } from './lazy-promise.js';
+import type {
+  EmailExtractJSON,
+  SMSExtractJSON,
+} from './rest-client/extracts.js';
 import {
   GetInboxEventSourceCommand,
   GetMessageCommand,
@@ -17,16 +22,21 @@ import {
   type Message,
   type SmsInbox,
 } from './rest-client/main.js';
-import type { SMSExtract } from './sms-types.js';
 
-export type EmailEventMessageData = Pick<
-  Message,
-  'teamId' | 'inboxId' | 'messageId'
+export type { ReadyState } from '@oyenjs/eventsource';
+
+export type Brand<T, B extends 'sms' | 'email' | 'whatsapp'> = T & {
+  readonly [K in B as `${K}`]?: never;
+};
+
+export type EmailEventMessageData = Brand<
+  Pick<Message, 'teamId' | 'inboxId' | 'messageId'>,
+  'email'
 >;
 
-export type SmsEventMessageData = Pick<
-  Message,
-  'teamId' | 'inboxId' | 'messageId'
+export type SmsEventMessageData = Brand<
+  Pick<Message, 'teamId' | 'inboxId' | 'messageId'>,
+  'sms'
 >;
 
 type InboundMessageData = EmailEventMessageData | SmsEventMessageData;
@@ -74,30 +84,42 @@ type CommonOptions = {
     }
 );
 
-type EmailOptions = {
-  teamId: string;
-  email: string;
-} & CommonOptions;
+type EmailOptions = Brand<
+  {
+    teamId: string;
+    emailAddress: string;
+  } & CommonOptions,
+  'email'
+>;
 
-type SmsOptions = {
-  teamId: string;
-  sms: string;
-} & CommonOptions;
+type SmsOptions = Brand<
+  {
+    teamId: string;
+    phoneNumber: string;
+  } & CommonOptions,
+  'sms'
+>;
 
-type EmailEventSourceOptions = {
-  inbox: EmailInbox;
-  es: InboxEventSource;
-} & CommonOptions;
+type EmailEventSourceOptions = Brand<
+  {
+    inbox: EmailInbox;
+    es: InboxEventSource;
+  } & CommonOptions,
+  'email'
+>;
 
-type SmsEventSourceOptions = {
-  inbox: SmsInbox;
-  es: InboxEventSource;
-} & CommonOptions;
+type SmsEventSourceOptions = Brand<
+  {
+    inbox: SmsInbox;
+    es: InboxEventSource;
+  } & CommonOptions,
+  'email'
+>;
 
 export type InboundOptions =
   | EmailOptions
-  | SmsOptions
   | EmailEventSourceOptions
+  | SmsOptions
   | SmsEventSourceOptions;
 
 function extractHandleAndDomain(email: string) {
@@ -124,6 +146,7 @@ function errToStr(err: unknown): string {
 const kLog = Symbol('log');
 const kWarn = Symbol('warn');
 const kInitPromise = Symbol('init');
+const kReadyState = Symbol('readyState');
 const kAbortController = Symbol('controller');
 const kConfig = Symbol('config');
 const kClient = Symbol('client');
@@ -132,15 +155,14 @@ function inline<T>(fn: () => T): T {
   return fn();
 }
 
-export class Inbound<TConfig extends InboundOptions> {
-  private readonly [kConfig]: TConfig & CommonOptions;
+export class Inbound<TOptions extends InboundOptions> {
+  private readonly [kConfig]: TOptions & CommonOptions;
 
-  private [kInitPromise]: Promise<{
-    inbox: EmailInbox | SmsInbox;
+  private [kInitPromise]: LazyPromise<{
     es: OyenEventSource<
-      TConfig extends EmailEventSourceOptions | EmailOptions
+      TOptions extends EmailOptions | EmailEventSourceOptions
         ? EmailEventMessageData
-        : TConfig extends SmsEventSourceOptions | SmsOptions
+        : TOptions extends SmsOptions | SmsEventSourceOptions
           ? SmsEventMessageData
           : never
     >;
@@ -150,7 +172,9 @@ export class Inbound<TConfig extends InboundOptions> {
 
   private [kClient]: OyenRestApiRestClient;
 
-  constructor(config: TConfig) {
+  private [kReadyState]: ReadyState = 'closed';
+
+  constructor(config: TOptions) {
     this[kConfig] = config;
 
     this[kClient] = inline(() => {
@@ -161,19 +185,24 @@ export class Inbound<TConfig extends InboundOptions> {
       if ('accessToken' in config) {
         const overrideConfig = config.restClientConfig;
 
-        return new OyenRestApiRestClient({
-          ...overrideConfig,
-          headers: {
-            authorization: `Bearer ${config.accessToken}`,
-            ...overrideConfig?.headers,
-            'user-agent': [
-              `${import.meta.env.PACKAGE_NAME}/${import.meta.env.PACKAGE_VERSION}`,
-              overrideConfig?.headers?.['user-agent'],
-            ]
-              .join(' ')
-              .trim(),
+        return new OyenRestApiRestClient(
+          overrideConfig?.endpoint
+            ? new URL(overrideConfig?.endpoint)
+            : undefined,
+          {
+            ...overrideConfig,
+            headers: {
+              authorization: `Bearer ${config.accessToken}`,
+              ...overrideConfig?.headers,
+              'user-agent': [
+                `${import.meta.env.PACKAGE_NAME}/${import.meta.env.PACKAGE_VERSION}`,
+                overrideConfig?.headers?.['user-agent'],
+              ]
+                .join(' ')
+                .trim(),
+            },
           },
-        });
+        );
       }
 
       throw new InboundInitError(
@@ -181,48 +210,55 @@ export class Inbound<TConfig extends InboundOptions> {
       ).debug(config);
     });
 
-    this[kInitPromise] =
-      'es' in config
-        ? LazyPromise.from(async () => ({
-            inbox: config.inbox,
-            es: await this.#initEs(config.es),
-          }))
-        : LazyPromise.from(() => this.#initEsViaApi(config));
+    if ('es' in config) {
+      this[kInitPromise] = LazyPromise.from(async () => ({
+        es: await this.#initEs(config.es),
+      }));
+    } else {
+      this[kInitPromise] = LazyPromise.from(() => this.#initEsViaApi(config));
+    }
 
     if (!('lazy' in config) || !!config.lazy) {
       // calling catch here on a LazyPromise starts it all off
       this[kInitPromise].catch((err) => {
-        this[kWarn]('error during connect: %s', errToStr(err));
+        this[kWarn]('error during init: %s', errToStr(err));
+        this[kReadyState] = 'closed';
       });
     }
   }
 
   public async connect() {
     this[kLog]('awaiting connect...');
-    await this[kInitPromise].then(({ es }) => es.connected);
+    await this.#init().then(({ es }) => es.connected);
     this[kLog]('connected');
   }
 
   public get readyState() {
-    return this[kInitPromise].then(({ es }) => es.readyState);
+    // stale while revalidate :grimace:
+    this[kInitPromise].then(({ es }) => {
+      this[kReadyState] = es.readyState;
+    });
+    return this[kReadyState];
   }
 
-  private [kLog](msg: string, ...args: unknown[]) {
+  private [kLog](arg: unknown, ...args: unknown[]) {
     this[kConfig].logger?.(
-      `${new Date().toISOString()} [inbound] ${msg}`,
+      `${new Date().toISOString()} [inbound] ${arg}`,
       ...args,
     );
   }
 
-  private [kWarn](msg: string, ...args: unknown[]) {
-    this[kLog](`WARN ${msg}`, ...args);
+  private [kWarn](arg: unknown, ...args: unknown[]) {
+    this[kLog](`WARN ${arg}`, ...args);
   }
 
   async #initEs(inboxEventSource: InboxEventSource) {
+    this[kReadyState] = 'connecting';
+
     return new OyenEventSource<
-      TConfig extends EmailEventSourceOptions | EmailOptions
+      TOptions extends EmailEventSourceOptions | EmailOptions
         ? EmailEventMessageData
-        : TConfig extends SmsEventSourceOptions | SmsOptions
+        : TOptions extends SmsEventSourceOptions | SmsOptions
           ? SmsEventMessageData
           : never
     >({
@@ -253,10 +289,12 @@ export class Inbound<TConfig extends InboundOptions> {
     this[kLog]('Inboxes found: %d', inboxes.length);
 
     const inbox =
-      'email' in params
+      'emailAddress' in params
         ? inboxes.find((i): i is EmailInbox => {
             // TODO: absolutely no need to do this every loop iteration
-            const { handle, domainName } = extractHandleAndDomain(params.email);
+            const { handle, domainName } = extractHandleAndDomain(
+              params.emailAddress,
+            );
             return (
               i.kind === 'email' &&
               i.handle === handle &&
@@ -264,7 +302,8 @@ export class Inbound<TConfig extends InboundOptions> {
             );
           })
         : inboxes.find(
-            (i): i is SmsInbox => i.kind === 'sms' && i.handle === params.sms,
+            (i): i is SmsInbox =>
+              i.kind === 'sms' && i.handle === params.phoneNumber,
           );
 
     if (!inbox) {
@@ -281,21 +320,21 @@ export class Inbound<TConfig extends InboundOptions> {
     );
 
     return {
-      inbox,
       es: await this.#initEs(inboxEventSource),
     };
   }
 
+  async #init() {
+    const result = await this[kInitPromise];
+    this[kReadyState] = result.es.readyState;
+    return result;
+  }
+
   public async ready() {
-    this[kLog]('Checking for readiness...');
-
-    await this[kInitPromise].then(async ({ es }) => {
-      this[kLog]('init resolved: es is %s', es.readyState);
-      await es.connected;
-      this[kLog]('es connected: es is %s', es.readyState);
-    });
-
-    this[kLog]('OK ready');
+    this[kLog]('checking for readiness...');
+    const { es } = await this.#init();
+    await es.connected;
+    this[kLog]('ready. es is %s', es.readyState);
   }
 
   async #getMessage(params: GetMessageCommandParams) {
@@ -305,15 +344,12 @@ export class Inbound<TConfig extends InboundOptions> {
 
     this[kLog]('Message retrieved: %j', message);
 
-    const { inbox } = await this[kInitPromise];
-
     const fetch =
       'fetch' in this[kConfig] ? this[kConfig].fetch : globalThis.fetch;
 
     const url = new URL(message.url);
-    const extractUrl = new URL(`${url.pathname}/${inbox.kind}.json`, url);
+    const extractUrl = new URL(`${url.pathname}.json`, url);
 
-    // this could be moved into the extract function if needed
     const res = await fetch(extractUrl, {
       headers: {
         accept: 'application/json',
@@ -321,33 +357,41 @@ export class Inbound<TConfig extends InboundOptions> {
       signal: this[kAbortController].signal,
     });
 
-    // allows extract to be called multiple times
-    // without reading the response body twice
-    const json = LazyPromise.from(() => res.json());
-
-    return {
-      source: message,
-      extract: async (): Promise<
-        TConfig extends EmailEventSourceOptions | EmailOptions
-          ? EmailExtract
-          : TConfig extends SmsEventSourceOptions | SmsOptions
-            ? SMSExtract
-            : never
-      > => json,
-    };
+    const extractJson = LazyPromise.from<
+      TOptions extends Brand<TOptions, 'email'>
+        ? EmailExtractJSON
+        : SMSExtractJSON
+    >(() => res.json());
+    // allows calling multiple times without reading the response body twice,
+    // or extracting in advance
+    return LazyPromise.from(async () => {
+      const extract = await extractJson;
+      return extractJsonToExtractHelper(extract, message);
+    });
   }
 
-  public async once(eventName?: never) {
-    this[kLog]('once requested for eventName=%s', eventName || 'unspecified');
-    const { es } = await this[kInitPromise];
+  public async once(
+    eventNameOrOptions?: never | { eventName?: never; signal?: AbortSignal },
+  ) {
+    const resolvedOptions =
+      typeof eventNameOrOptions === 'object'
+        ? {
+            eventName: eventNameOrOptions?.eventName,
+            signal: eventNameOrOptions?.signal,
+          }
+        : {
+            eventName: eventNameOrOptions,
+          };
 
-    this[kLog]('waiting once event=%s', eventName);
+    const { es } = await this.#init();
+
+    this[kLog]('waiting once event=%s', resolvedOptions.eventName);
 
     // eslint-disable-next-line no-restricted-syntax
-    for await (const event of es.listen(eventName)) {
+    for await (const event of es.listen(resolvedOptions.eventName)) {
       this[kLog]('got event=%j', event);
 
-      if (event) {
+      if (event !== null) {
         return this.#getMessage({
           teamId: event.d.teamId,
           inboxId: event.d.inboxId,
@@ -360,11 +404,9 @@ export class Inbound<TConfig extends InboundOptions> {
   }
 
   public async *stream(eventName?: never) {
-    this[kLog]('stream requested for eventName=%s', eventName || 'unspecified');
+    const { es } = await this.#init();
 
-    const { es } = await this[kInitPromise];
-
-    this[kLog]('streaming events=%s', eventName);
+    this[kLog]('streaming events eventName=%s', eventName);
 
     // eslint-disable-next-line no-restricted-syntax
     for await (const event of es.listen(eventName)) {
@@ -376,8 +418,6 @@ export class Inbound<TConfig extends InboundOptions> {
           inboxId: event.d.inboxId,
           messageId: event.d.messageId,
         });
-      } else {
-        yield null;
       }
     }
   }
@@ -386,13 +426,14 @@ export class Inbound<TConfig extends InboundOptions> {
     this[kLog]('closing...');
     this[kAbortController].abort();
     this[kAbortController] = new AbortController();
+    this[kReadyState] = 'closed';
 
     // never throw during close
     try {
-      const { es } = await this[kInitPromise];
+      const { es } = await this.#init();
       await es.close().then(() => this[kLog]('closed successfully'));
     } catch (err) {
-      this[kWarn]('error closing: %s', errToStr(err));
+      this[kWarn]('error during close: %s', errToStr(err));
     }
   }
 }
