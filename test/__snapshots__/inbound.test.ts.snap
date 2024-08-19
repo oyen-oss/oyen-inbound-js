@@ -2,31 +2,58 @@
 
 exports[`Inbound > Email 1`] = `
 {
-  "createTime": "2021-01-01T00:00:00.000Z",
-  "inboxId": "ememememe",
-  "messageId": "msgemememe",
-  "rawSize": 3,
-  "sha256": "d2b0f7f5c7c5f3d3d3",
-  "teamId": "tetetete",
-  "url": "https://messages.oyenusercontent.com/msgemememe",
+  "headers": {},
+  "html": {
+    "document": {
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Hello, world!",
+            },
+          ],
+          "properties": {},
+          "tagName": "p",
+          "type": "element",
+        },
+      ],
+      "type": "root",
+    },
+    "raw": "<p>Hello, world!</p>",
+  },
+  "kind": "email",
+  "message": {
+    "createTime": "2021-01-01T00:00:00.000Z",
+    "inboxId": "ememememe",
+    "kind": "email",
+    "messageId": "msgemememe",
+    "rawSize": 3,
+    "sha256": "d2b0f7f5c7c5f3d3d3",
+    "teamId": "tetetete",
+    "url": "https://messages.oyenusercontent.com/u/tetetete/ememememe/msgemememe/1970/0/ffffffffffff/email",
+  },
 }
 `;
 
-exports[`Inbound > Email 2`] = `
+exports[`Inbound > SMS 1`] = `
 {
-  "children": [
-    {
-      "children": [
-        {
-          "type": "text",
-          "value": "Hello, world!",
-        },
-      ],
-      "properties": {},
-      "tagName": "p",
-      "type": "element",
-    },
-  ],
-  "type": "root",
+  "from": {
+    "countryCode": "US",
+    "idd": "1",
+    "localNumber": "1234567890",
+    "raw": "+11234567890",
+  },
+  "kind": "sms",
+  "parts": 1,
+  "text": {
+    "raw": "Hello, world!",
+  },
+  "to": {
+    "countryCode": "US",
+    "idd": "1",
+    "localNumber": "1234567890",
+    "raw": "+11234567890",
+  },
 }
 `;

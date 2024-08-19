@@ -4,20 +4,21 @@
  *
  * WARN: Do not edit directly.
  *
- * Generated on 2024-07-27T04:59:41.172Z
+ * Generated on 2024-08-19T05:17:33.445Z
  *
  */
 import type { Jsonify } from 'type-fest';
 
 export type Uuid = string;
 
-export enum Sku {
+export enum SkuEnum {
   Email = 'email',
   Sms = 'sms',
   Event = 'event',
   Webhook = 'webhook',
 }
 
+export type SkuString = 'email' | 'sms' | 'event' | 'webhook';
 export type PaymentDetails = {
   url: string;
 };
@@ -28,23 +29,25 @@ export type CreateMessageRequest = {
   sha256: string;
 };
 
-export enum Permission {
+export enum PermissionEnum {
   UsersTokensGet = 'users.tokens.get',
   InboxesLocate = 'inboxes.locate',
 }
 
+export type PermissionString = 'users.tokens.get' | 'inboxes.locate';
 export type Description = string;
 export type DisplayName = string;
 export type UpdateTokenRequest = {
   label?: DisplayName;
   description?: Description | null;
-  permissions?: Permission[] | null;
+  permissions?: PermissionString[] | null;
 };
 
-export enum PermissionRole {
+export enum PermissionRoleEnum {
   'Role/inboxesReader' = 'role/inboxes-reader',
 }
 
+export type PermissionRoleString = 'role/inboxes-reader';
 export type NameId = string;
 export type Id = string;
 export type IsoTimestamp = Jsonify<Date>;
@@ -59,8 +62,8 @@ export type Token = {
     name: NameId;
     displayName: DisplayName;
   };
-  permissions?: Permission[];
-  roles?: PermissionRole[];
+  permissions?: PermissionString[];
+  roles?: PermissionRoleString[];
   principal?: string;
   expireTime?: IsoTimestamp;
 };
@@ -77,8 +80,8 @@ export type TokenWithJwt = {
     name: NameId;
     displayName: DisplayName;
   };
-  permissions?: Permission[];
-  roles?: PermissionRole[];
+  permissions?: PermissionString[];
+  roles?: PermissionRoleString[];
   principal?: string;
   expireTime?: IsoTimestamp;
 } & {
@@ -88,14 +91,15 @@ export type CreateTokenRequest = {
   label: DisplayName;
   description?: Description;
   teamId: Id;
-  permissions: Permission[];
+  permissions: PermissionString[];
 };
 
-export enum Role {
+export enum RoleEnum {
   Owner = 'owner',
   Member = 'member',
 }
 
+export type RoleString = 'owner' | 'member';
 export type RealtimeKey = string;
 export type MemberTeam = {
   createTime: IsoTimestamp;
@@ -104,13 +108,17 @@ export type MemberTeam = {
   name: NameId;
   displayName?: DisplayName;
   realtimeKey: RealtimeKey;
-  role: Role;
+  role: RoleString;
 };
 export type MemberTeams = MemberTeam[];
+export type WhatsAppKind = 'whatsapp';
+export type EmailKind = 'email';
+export type SmsKind = 'sms';
 export type Message = {
   teamId: Id;
   inboxId: Id;
   messageId: Id;
+  kind?: SmsKind | EmailKind | WhatsAppKind | null;
   url: string;
   rawSize: number;
   sha256: string;
@@ -134,7 +142,7 @@ export type EmailInbox = Timestamps & {
   inboxId: Id;
   kind: 'email';
   handle: EmailHandle;
-  domain: 'example.oyenmail.com';
+  domain: string;
   description?: Description;
 };
 export type EmailInboxList = EmailInbox[];
@@ -200,23 +208,24 @@ export type CreateKeyRequest = {
   description?: Description;
   publicKey: JwkPublic;
 };
-export type SmsHandle = string;
+export type PhoneNumber = string;
 export type SmsInbox = Timestamps & {
   teamId: Id;
   inboxId: Id;
-  kind: 'sms';
-  handle?: SmsHandle;
+  kind: SmsKind;
+  handle?: PhoneNumber;
   description?: Description;
 };
-export type InboxKind = EmailInbox | SmsInbox;
-export type InboxList = InboxKind[];
+export type Inbox = EmailInbox | SmsInbox;
+export type InboxList = Inbox[];
 export type UpdateInboxRequest = {
   description?: Description | null;
 };
+export type Domain = string;
 export type CreateEmailInboxRequest = {
   kind: 'email';
   handle: EmailHandle;
-  domain: 'milodactyl.com';
+  domain: Domain;
   description?: Description;
 };
 export type AcceptTeamInvitationRequest = {
@@ -225,7 +234,7 @@ export type AcceptTeamInvitationRequest = {
 export type TeamInvitation = Timestamps & {
   teamId: Id;
   invitationId: Id;
-  role: Role;
+  role: RoleString;
   expireTime: IsoTimestamp;
   lastSendTime?: IsoTimestamp;
   inviteeEmail?: Email;
@@ -233,14 +242,14 @@ export type TeamInvitation = Timestamps & {
 };
 export type TeamInvitations = TeamInvitation[];
 export type CreateTeamInvitationRequest = {
-  role: Role;
+  role: RoleString;
   inviteeEmail: Email;
 };
 export type TeamMember = Timestamps & {
   teamId: Id;
   userId: UserId;
   username?: NameId;
-  role: Role;
+  role: RoleString;
 };
 export type TeamMembers = TeamMember[];
 export type Team = {

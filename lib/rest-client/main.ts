@@ -1,6 +1,7 @@
 export * from './generated/commands.js';
 export * from './generated/main.js';
 export * from './generated/types.js';
+export * from './extracts.js';
 
 export {
   type RestServiceClient,

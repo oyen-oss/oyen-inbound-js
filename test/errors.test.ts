@@ -26,7 +26,7 @@ describe('Errors', () => {
     },
     teamId: 'aaaaaaaa',
     accessToken: fakeInboundApiToken,
-    sms: '1234567890',
+    phoneNumber: '1234567890',
     // eslint-disable-next-line no-console
     logger: console.log,
   } satisfies InboundOptions;
