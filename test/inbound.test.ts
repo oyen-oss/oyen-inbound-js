@@ -1,7 +1,10 @@
 import type { EventMessage } from '@oyenjs/eventsource';
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { afterEach, beforeAll, describe, expect, test, vitest } from 'vitest';
-import type { EmailExtractJSON } from '../lib/rest-client/extracts.js';
+import type {
+  EmailExtractJSON,
+  SMSExtractJSON,
+} from '../lib/rest-client/extracts.js';
 import type {
   EmailInbox,
   InboxEventSource,
@@ -45,9 +48,9 @@ describe('Inbound', () => {
     const domainName = 'example.oyenmail.com';
 
     const mockEventSourceId = 'esesesese';
-    const mockEmailInboxId = 'ememememe';
-    const mockChannel = `inbox:${mockEmailInboxId}`;
-    const mockEmailMessageId = 'msgemememe';
+    const mockInboxId = 'ememememe';
+    const mockChannel = `inbox:${mockInboxId}`;
+    const mockMessageId = 'msgemememe';
 
     // event source
     const fakeEventStreamEndpoint = new URL(
@@ -63,7 +66,7 @@ describe('Inbound', () => {
     fakeEventStreamEndpoint.searchParams.set('channels', mockChannel);
 
     const mockEmailMessageContentUrlPrefix = new URL(
-      `/u/${mockTeamId}/${mockEmailInboxId}/${mockEmailMessageId}/1970/0/ffffffffffff/email`,
+      `/u/${mockTeamId}/${mockInboxId}/${mockMessageId}/1970/0/ffffffffffff/email`,
       userContentEndpoint,
     );
     const mockUserContent = fetchMock.get(
@@ -81,7 +84,7 @@ describe('Inbound', () => {
         [
           {
             teamId: mockTeamId,
-            inboxId: mockEmailInboxId,
+            inboxId: mockInboxId,
             kind: 'email',
             handle,
             domain: domainName,
@@ -98,7 +101,7 @@ describe('Inbound', () => {
     mockApi
       .intercept({
         method: 'get',
-        path: `/teams/${mockTeamId}/inboxes/${mockEmailInboxId}/eventsource`,
+        path: `/teams/${mockTeamId}/inboxes/${mockInboxId}/eventsource`,
       })
 
       .reply<InboxEventSource>(
@@ -132,8 +135,8 @@ describe('Inbound', () => {
             ch: mockChannel,
             d: JSON.stringify({
               teamId: mockTeamId,
-              inboxId: mockEmailInboxId,
-              messageId: mockEmailMessageId,
+              inboxId: mockInboxId,
+              messageId: mockMessageId,
             } satisfies EmailEventMessageData),
             enc: 'json',
             iat: new Date().toISOString(),
@@ -189,14 +192,14 @@ describe('Inbound', () => {
     mockApi
       .intercept({
         method: 'get',
-        path: `/teams/${mockTeamId}/inboxes/${mockEmailInboxId}/messages/${mockEmailMessageId}`,
+        path: `/teams/${mockTeamId}/inboxes/${mockInboxId}/messages/${mockMessageId}`,
       })
       .reply<Message>(
         200,
         {
           teamId: mockTeamId,
-          inboxId: mockEmailInboxId,
-          messageId: mockEmailMessageId,
+          inboxId: mockInboxId,
+          messageId: mockMessageId,
           kind: 'email',
           url: mockEmailMessageContentUrlPrefix.toString(),
           createTime: new Date().toISOString(),
@@ -208,7 +211,7 @@ describe('Inbound', () => {
         },
       );
 
-    const inboundEmail = new Inbound({
+    const inbound = new Inbound({
       teamId: mockTeamId,
       accessToken: fakeInboundApiToken,
       emailAddress: `${handle}@${domainName}`,
@@ -221,19 +224,33 @@ describe('Inbound', () => {
       },
     });
 
-    const extracted = await inboundEmail.once();
+    const extracted = await inbound.once();
     await expect(extracted).toMatchSnapshot();
 
-    inboundEmail.close();
+    expect(extracted.html?.document.select('p')).toMatchInlineSnapshot(`
+      {
+        "children": [
+          {
+            "type": "text",
+            "value": "Hello, world!",
+          },
+        ],
+        "properties": {},
+        "tagName": "p",
+        "type": "element",
+      }
+    `);
+
+    await inbound.close();
   });
 
   test('SMS', async () => {
     const number = '1234567890';
 
-    const mockSmsInboxId = 'smsmsmsmsms';
-    const mockEventSourceId = 'eseseseses';
-    const mockChannel = `inbox:${mockSmsInboxId}`;
-
+    const mockInboxId = 'smsibxsmsibxsmsibxsmsibx';
+    const mockEventSourceId = 'smsesesesesese';
+    const mockChannel = `inbox:${mockInboxId}`;
+    const mockMessageId = 'smsmsmsmsmsmsg';
     // list inboxes
     mockApi
       .intercept({
@@ -245,7 +262,7 @@ describe('Inbound', () => {
         [
           {
             teamId: mockTeamId,
-            inboxId: mockSmsInboxId,
+            inboxId: mockInboxId,
             kind: 'sms',
             handle: number,
             description: 'test only',
@@ -257,13 +274,29 @@ describe('Inbound', () => {
         },
       );
 
-    const fakeEventStreamEndpointPath = `/e/${mockTeamId}/${mockEventSourceId}/event-stream?accessToken=${mockEventsAccessToken}&channels=${mockChannel}`;
+    // event source
+    const fakeEventStreamEndpoint = new URL(
+      `/e/${mockTeamId}/${mockEventSourceId}/event-stream`,
+      eventSourceEndpoint,
+    );
+
+    // channels and access token
+    fakeEventStreamEndpoint.searchParams.set(
+      'accessToken',
+      mockEventsAccessToken,
+    );
+    fakeEventStreamEndpoint.searchParams.set('channels', mockChannel);
+
+    const mockMessageContentUrlPrefix = new URL(
+      `/u/${mockTeamId}/${mockInboxId}/${mockMessageId}/1970/0/ffffffffffff/sms`,
+      userContentEndpoint,
+    );
 
     // event source
     mockApi
       .intercept({
         method: 'get',
-        path: `/teams/${mockTeamId}/inboxes/${mockSmsInboxId}/eventsource`,
+        path: `/teams/${mockTeamId}/inboxes/${mockInboxId}/eventsource`,
       })
       .reply<InboxEventSource>(
         200,
@@ -272,10 +305,7 @@ describe('Inbound', () => {
           createTime: new Date().toISOString(),
           accessToken: mockEventsAccessToken,
           channel: mockChannel,
-          endpoint: new URL(
-            fakeEventStreamEndpointPath,
-            eventSourceEndpoint,
-          ).toString(),
+          endpoint: fakeEventStreamEndpoint.toString(),
           eventSourceId: mockEventSourceId,
         } satisfies InboxEventSource,
         {
@@ -287,24 +317,26 @@ describe('Inbound', () => {
     mockEvents
       .intercept({
         method: 'get',
-        path: fakeEventStreamEndpointPath,
+        path: fakeEventStreamEndpoint.pathname,
+        query: Object.fromEntries(
+          fakeEventStreamEndpoint.searchParams.entries(),
+        ),
       })
       .reply(
         200,
         [
           'id:0',
           `data:${JSON.stringify({
-            ch: mockSmsInboxId,
+            ch: mockInboxId,
             d: JSON.stringify({
               teamId: mockTeamId,
-              inboxId: mockSmsInboxId,
-              messageId: 'msgsms456',
+              inboxId: mockInboxId,
+              messageId: mockMessageId,
             } satisfies SmsEventMessageData),
             enc: 'json',
             iat: new Date().toISOString(),
           } satisfies EventMessage<string>)}`,
-          '',
-          '',
+          '\n',
         ].join('\n'),
         {
           headers: { 'content-type': 'text/event-stream' },
@@ -312,16 +344,78 @@ describe('Inbound', () => {
       )
       .persist();
 
-    const inboundSms = new Inbound({
+    const mockUserContent = fetchMock.get(mockMessageContentUrlPrefix.origin);
+
+    // message content
+    mockUserContent
+      .intercept({
+        path: `${mockMessageContentUrlPrefix.pathname}.json`,
+      })
+      .reply<SMSExtractJSON>(
+        200,
+        {
+          kind: 'sms',
+          to: {
+            countryCode: 'US',
+            idd: '1',
+            localNumber: '1234567890',
+            raw: '+11234567890',
+          },
+          from: {
+            countryCode: 'US',
+            idd: '1',
+            localNumber: '1234567890',
+            raw: '+11234567890',
+          },
+          parts: 1,
+          text: {
+            raw: 'Hello, world!',
+          },
+        } satisfies SMSExtractJSON,
+        {
+          headers: { 'content-type': 'text/json' },
+        },
+      );
+
+    // message
+    mockApi
+      .intercept({
+        method: 'get',
+        path: `/teams/${mockTeamId}/inboxes/${mockInboxId}/messages/${mockMessageId}`,
+      })
+      .reply<Message>(
+        200,
+        {
+          kind: 'sms',
+          teamId: mockTeamId,
+          inboxId: mockInboxId,
+          messageId: mockMessageId,
+          url: mockMessageContentUrlPrefix.toString(),
+          createTime: new Date().toISOString(),
+          rawSize: 3,
+          sha256: 'ffffffffffff',
+        } satisfies Message,
+        {
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+
+    const inbound = new Inbound({
       teamId: mockTeamId,
       accessToken: fakeInboundApiToken,
       phoneNumber: number,
       // eslint-disable-next-line no-console
       logger: console.log,
+      restClientConfig: {
+        logger: (msg, ...args) =>
+          // eslint-disable-next-line no-console
+          console.log(`${new Date().toISOString()} ${msg}`, ...args),
+      },
     });
 
-    await expect(inboundSms.once()).resolves.toMatchSnapshot();
+    const extracted = await inbound.once();
+    await expect(extracted).toMatchSnapshot();
 
-    await inboundSms.close();
-  });
+    inbound.close();
+  }, 30000);
 });

@@ -35,3 +35,25 @@ exports[`Inbound > Email 1`] = `
   },
 }
 `;
+
+exports[`Inbound > SMS 1`] = `
+{
+  "from": {
+    "countryCode": "US",
+    "idd": "1",
+    "localNumber": "1234567890",
+    "raw": "+11234567890",
+  },
+  "kind": "sms",
+  "parts": 1,
+  "text": {
+    "raw": "Hello, world!",
+  },
+  "to": {
+    "countryCode": "US",
+    "idd": "1",
+    "localNumber": "1234567890",
+    "raw": "+11234567890",
+  },
+}
+`;

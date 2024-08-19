@@ -89,7 +89,5 @@ export type SMSExtractJSON = {
   parts: number;
   text: {
     raw: string;
-    links?: string[];
-    otps?: string[];
   };
 };
