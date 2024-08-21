@@ -23,7 +23,7 @@ import {
   type SmsInbox,
 } from './rest-client/main.js';
 
-export type { ReadyState } from '@oyenjs/eventsource';
+export type { ReadyState };
 
 export type Brand<T, B extends 'sms' | 'email' | 'whatsapp'> = T & {
   readonly [K in B as `${K}`]?: never;
