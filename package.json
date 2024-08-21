@@ -15,10 +15,11 @@
   },
   "files": [
     "build/src/*.js",
-    "dist/lib/*.d.ts",
-    "dist/lib/*.map",
-    "dist/src/*.d.ts",
-    "dist/src/*.map"
+    "build/src/*.map",
+    "dist/lib/**/*.d.ts",
+    "dist/lib/**/*.map",
+    "dist/src/**/*.d.ts",
+    "dist/src/**/*.map"
   ],
   "scripts": {
     "preversion": "make test"
