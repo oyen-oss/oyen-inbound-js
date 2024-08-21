@@ -15,10 +15,11 @@
   },
   "files": [
     "build/src/*.js",
-    "dist/lib/*.d.ts",
-    "dist/lib/*.map",
-    "dist/src/*.d.ts",
-    "dist/src/*.map"
+    "build/src/*.map",
+    "dist/lib/**/*.d.ts",
+    "dist/lib/**/*.map",
+    "dist/src/**/*.d.ts",
+    "dist/src/**/*.map"
   ],
   "scripts": {
     "preversion": "make test"
@@ -34,7 +35,7 @@
     "@block65/eslint-config": "^12.0.1",
     "@oyenjs/keys": "^4.0.0",
     "@types/hast": "^3.0.4",
-    "@types/node": "^20.15.0",
+    "@types/node": "^20.16.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.0",
@@ -43,8 +44,8 @@
     "prettier": "^3.3.3",
     "type-fest": "^4.25.0",
     "typescript": "5.5.4",
-    "undici": "^6.19.7",
-    "vite": "^5.4.1",
+    "undici": "^6.19.8",
+    "vite": "^5.4.2",
     "vitest": "^2.0.5"
   },
   "packageManager": "pnpm@9.7.1+sha512.faf344af2d6ca65c4c5c8c2224ea77a81a5e8859cbc4e06b1511ddce2f0151512431dd19e6aff31f2c6a8f5f2aced9bd2273e1fed7dd4de1868984059d2c4247",

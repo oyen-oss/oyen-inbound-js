@@ -28,3 +28,5 @@ export type EmailExtract = Merge<
 >;
 
 export type SMSExtract = SMSExtractJSON;
+
+export type { EmailAddress } from './rest-client/extracts.js';
